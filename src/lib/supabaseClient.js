@@ -235,13 +235,16 @@ if (isElectron) {
 export const supabase = {
   auth: {
     signInWithPassword: async ({ email, password }) => {
-      const session = { user: { email } }
-      if (isElectron) {
-        await window.electronAPI.query({ table: 'session', action: 'set_session', payload: session })
-      } else {
-        localStorage.setItem('session', JSON.stringify(session))
+      if (email === 'mayankpathakc@gmail.com' && password === '1234567890') {
+        const session = { user: { email } }
+        if (isElectron) {
+          await window.electronAPI.query({ table: 'session', action: 'set_session', payload: session })
+        } else {
+          localStorage.setItem('session', JSON.stringify(session))
+        }
+        return { data: { session }, error: null }
       }
-      return { data: { session }, error: null }
+      return { data: null, error: { message: 'Invalid email or password' } }
     },
     getSession: async () => {
       if (isElectron) {

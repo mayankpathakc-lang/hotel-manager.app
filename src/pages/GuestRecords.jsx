@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { Search } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Search, Users, Globe, Phone, FileText } from 'lucide-react'
 
 export default function GuestRecords() {
   const [guests, setGuests] = useState([])
@@ -26,56 +27,97 @@ export default function GuestRecords() {
     g.phone.includes(search)
   )
 
-  if (loading) return <div>Loading records...</div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-500 rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h1 className="text-3xl font-bold text-gray-800">Guest Records</h1>
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }} 
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+      >
+        <div>
+          <h1 className="page-header flex items-center">
+            <Users size={28} className="mr-3 text-brand-500" />
+            Guest Records
+          </h1>
+          <p className="page-subheader">{guests.length} guests registered</p>
+        </div>
         
-        <div className="relative w-full md:w-72">
+        <div className="relative w-full md:w-80">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="Search by name or phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            className="input-field pl-11 text-sm"
           />
-          <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
         </div>
-      </div>
+      </motion.div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="section-card"
+      >
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="data-table">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="p-4 font-semibold text-sm text-gray-600">Guest Name</th>
-                <th className="p-4 font-semibold text-sm text-gray-600">Phone</th>
-                <th className="p-4 font-semibold text-sm text-gray-600">ID Proof</th>
-                <th className="p-4 font-semibold text-sm text-gray-600">Nationality</th>
-                <th className="p-4 font-semibold text-sm text-gray-600">Registered On</th>
+              <tr>
+                <th>Guest Name</th>
+                <th>Phone</th>
+                <th>ID Proof</th>
+                <th>Nationality</th>
+                <th>Registered On</th>
               </tr>
             </thead>
             <tbody>
-              {filteredGuests.map((guest, idx) => (
-                <tr key={guest.id} className={`border-b border-gray-50 hover:bg-indigo-50/30 transition-colors ${idx % 2 === 0 ? '' : 'bg-gray-50/50'}`}>
-                  <td className="p-4 font-medium text-gray-800">{guest.name}</td>
-                  <td className="p-4 text-gray-600">{guest.phone}</td>
-                  <td className="p-4 text-gray-600">{guest.id_proof_type} ({guest.id_proof_number})</td>
-                  <td className="p-4 text-gray-600">{guest.nationality}</td>
-                  <td className="p-4 text-gray-600">{new Date(guest.created_at).toLocaleDateString()}</td>
+              {filteredGuests.map((guest) => (
+                <tr key={guest.id}>
+                  <td>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-9 h-9 rounded-2xl bg-pastel-lavender flex items-center justify-center shrink-0">
+                        <span className="text-sm font-bold text-brand-600">{guest.name.charAt(0)}</span>
+                      </div>
+                      <span className="font-semibold text-gray-800">{guest.name}</span>
+                    </div>
+                  </td>
+                  <td className="text-gray-600">
+                    <span className="flex items-center"><Phone size={13} className="mr-1.5 text-gray-400" />{guest.phone}</span>
+                  </td>
+                  <td className="text-gray-600">
+                    <span className="flex items-center">
+                      <FileText size={13} className="mr-1.5 text-gray-400" />
+                      {guest.id_proof_type}
+                      <span className="ml-1 text-gray-400">({guest.id_proof_number})</span>
+                    </span>
+                  </td>
+                  <td className="text-gray-600">
+                    <span className="flex items-center"><Globe size={13} className="mr-1.5 text-gray-400" />{guest.nationality}</span>
+                  </td>
+                  <td className="text-gray-500 text-xs font-medium">{new Date(guest.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
               {filteredGuests.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="p-8 text-center text-gray-500">No guests found.</td>
+                  <td colSpan="5" className="p-12 text-center text-gray-400">
+                    <Users size={32} className="mx-auto mb-3 text-gray-300" />
+                    <p className="font-medium">No guests found</p>
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

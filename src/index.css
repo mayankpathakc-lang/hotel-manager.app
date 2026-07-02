@@ -3,8 +3,169 @@
 @tailwind utilities;
 
 @layer base {
+  * {
+    @apply antialiased;
+  }
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-surface-50 text-gray-800 font-sans;
+    background-image: 
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320' preserveAspectRatio='none'%3E%3Cpath fill='%23FFBC5E' fill-opacity='0.05' d='M0,288L60,266.7C120,245,240,203,360,202.7C480,203,600,245,720,240C840,235,960,181,1080,165.3C1200,149,1320,171,1380,181.3L1440,192L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z'%3E%3C/path%3E%3Cpath fill='%23CC7219' fill-opacity='0.03' d='M0,224L60,202.7C120,181,240,139,360,144C480,149,600,203,720,224C840,245,960,235,1080,213.3C1200,192,1320,160,1380,144L1440,128L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z'%3E%3C/path%3E%3C/svg%3E"),
+      radial-gradient(ellipse at 20% 0%, rgba(255, 224, 178, 0.18) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(255, 243, 219, 0.18) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(255, 240, 219, 0.1) 0%, transparent 60%);
+    background-attachment: fixed;
+    background-position: bottom;
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+  ::selection {
+    @apply bg-brand-200 text-brand-900;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-brand-200 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-brand-300;
+  }
+}
+
+@layer components {
+  /* Glass card */
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-xl border border-white/60 rounded-3xl shadow-glass;
+  }
+  .glass-card-solid {
+    @apply bg-white border border-surface-200 rounded-3xl shadow-glass;
+  }
+
+  /* Stat card */
+  .stat-card {
+    @apply glass-card p-6 relative overflow-hidden transition-all duration-300;
+  }
+  .stat-card:hover {
+    @apply shadow-glass-lg -translate-y-1;
+  }
+  .stat-card::before {
+    content: '';
+    @apply absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-30 blur-2xl;
+  }
+
+  /* Brand button */
+  .btn-brand {
+    @apply px-6 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-2xl
+           shadow-pastel hover:shadow-pastel-lg hover:-translate-y-0.5
+           active:translate-y-0 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-brand-outline {
+    @apply px-6 py-3 border-2 border-brand-200 text-brand-600 font-semibold rounded-2xl
+           hover:bg-brand-50 hover:border-brand-300 active:bg-brand-100 
+           transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-ghost {
+    @apply px-4 py-2 text-gray-600 font-medium rounded-xl
+           hover:bg-surface-200 active:bg-surface-300 transition-all duration-200;
+  }
+  .btn-danger {
+    @apply px-6 py-3 bg-gradient-to-r from-rose-400 to-rose-500 text-white font-semibold rounded-2xl
+           shadow-sm hover:shadow-md hover:-translate-y-0.5
+           active:translate-y-0 transition-all duration-200 disabled:opacity-50;
+  }
+  .btn-success {
+    @apply px-6 py-3 bg-gradient-to-r from-emerald-400 to-teal-500 text-white font-semibold rounded-2xl
+           shadow-sm hover:shadow-md hover:-translate-y-0.5
+           active:translate-y-0 transition-all duration-200 disabled:opacity-50;
+  }
+
+  /* Input fields */
+  .input-field {
+    @apply w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-2xl
+           text-gray-800 placeholder:text-gray-400
+           focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-300 focus:bg-white
+           transition-all duration-200;
+  }
+  .select-field {
+    @apply w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-2xl
+           text-gray-800 appearance-none
+           focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-300 focus:bg-white
+           transition-all duration-200;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23FF9933' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 40px;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider;
+  }
+  .badge-available {
+    @apply badge bg-pastel-mint text-emerald-700;
+  }
+  .badge-occupied {
+    @apply badge bg-pastel-rose text-rose-700;
+  }
+  .badge-maintenance {
+    @apply badge bg-pastel-yellow text-amber-700;
+  }
+  .badge-reserved {
+    @apply badge bg-pastel-saffron text-brand-700;
+  }
+
+  /* Page header */
+  .page-header {
+    @apply font-display text-3xl font-extrabold text-gray-900 tracking-tight;
+  }
+  .page-subheader {
+    @apply text-sm font-medium text-gray-400 mt-1;
+  }
+
+  /* Table */
+  .data-table {
+    @apply w-full text-left border-collapse;
+  }
+  .data-table thead tr {
+    @apply bg-surface-100;
+  }
+  .data-table th {
+    @apply p-4 text-xs font-bold text-gray-500 uppercase tracking-wider;
+  }
+  .data-table tbody tr {
+    @apply border-b border-surface-100 hover:bg-brand-50/30 transition-colors duration-150;
+  }
+  .data-table td {
+    @apply p-4 text-sm;
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50;
+  }
+  .modal-content {
+    @apply bg-white rounded-4xl w-full overflow-hidden shadow-glass-lg;
+  }
+
+  /* Section card */
+  .section-card {
+    @apply glass-card-solid overflow-hidden;
+  }
+  .section-card-header {
+    @apply p-6 border-b border-surface-100;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-500 to-brand-700;
+  }
+  .text-gradient-warm {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-rose-400;
   }
 }
 
@@ -20,5 +181,8 @@
     left: 0;
     top: 0;
     width: 100%;
+  }
+  .hide-print {
+    display: none !important;
   }
 }

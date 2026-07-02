@@ -1,6 +1,11 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import { LayoutDashboard, Bed, UserPlus, Users, UtensilsCrossed, Menu as MenuIcon, Receipt, BarChart3, LogOut } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { 
+  LayoutDashboard, Bed, UserPlus, Users, UtensilsCrossed, 
+  Menu as MenuIcon, Receipt, BarChart3, LogOut, CalendarDays, 
+  DoorOpen, MountainSnow, Grid3x3
+} from 'lucide-react'
 
 const Layout = () => {
   const location = useLocation()
@@ -14,8 +19,11 @@ const Layout = () => {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Rooms', path: '/rooms', icon: Bed },
+    { name: 'Calendar', path: '/calendar', icon: CalendarDays },
+    { name: 'Occupancy Chart', path: '/occupancy-chart', icon: Grid3x3 },
     { name: 'Register Guest', path: '/guest-registration', icon: UserPlus },
     { name: 'Guest Records', path: '/guest-records', icon: Users },
+    { name: 'Checkout', path: '/checkout', icon: DoorOpen },
     { name: 'Restaurant', path: '/restaurant', icon: UtensilsCrossed },
     { name: 'Menu', path: '/menu', icon: MenuIcon },
     { name: 'Billing', path: '/billing', icon: Receipt },
@@ -23,15 +31,28 @@ const Layout = () => {
   ]
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-surface-50">
       {/* Sidebar */}
-      <aside className="w-64 bg-indigo-900 text-white flex flex-col hide-print">
-        <div className="p-4 border-b border-indigo-800">
-          <h1 className="text-2xl font-bold tracking-wider">LUMIERE</h1>
-          <p className="text-indigo-300 text-xs mt-1 uppercase tracking-widest">Hotel & Dining</p>
+      <aside className="w-72 bg-gradient-sidebar text-white flex flex-col hide-print relative overflow-hidden">
+        {/* Decorative orbs */}
+        <div className="absolute -top-20 -left-20 w-48 h-48 bg-brand-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-20 -right-10 w-36 h-36 bg-brand-300/15 rounded-full blur-3xl pointer-events-none" />
+        
+        {/* Logo */}
+        <div className="p-6 relative z-10">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+              <MountainSnow size={20} className="text-brand-200" />
+            </div>
+            <div>
+              <h1 className="text-lg font-display font-extrabold tracking-wide leading-tight">JOSHI</h1>
+              <p className="text-brand-200 text-[10px] font-semibold uppercase tracking-[0.15em]">Guest House</p>
+            </div>
+          </div>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {/* Navigation */}
+        <nav className="flex-1 px-4 space-y-1 overflow-y-auto relative z-10 mt-2">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.path
@@ -39,33 +60,49 @@ const Layout = () => {
               <Link
                 key={item.name}
                 to={item.path}
-                className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors ${
-                  isActive 
-                    ? 'bg-indigo-800 text-white' 
-                    : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
-                }`}
+                className="relative block group"
               >
-                <Icon size={20} />
-                <span className="font-medium">{item.name}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-white/15 backdrop-blur-sm rounded-2xl"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <div className={`relative flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-200 ${
+                  isActive 
+                    ? 'text-white' 
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}>
+                  <Icon size={19} strokeWidth={isActive ? 2.5 : 2} />
+                  <span className={`font-medium text-sm ${isActive ? 'font-semibold' : ''}`}>{item.name}</span>
+                  {isActive && (
+                    <motion.div 
+                      layoutId="activeDot"
+                      className="absolute right-3 w-2 h-2 bg-brand-200 rounded-full shadow-sm shadow-brand-300/50"
+                    />
+                  )}
+                </div>
               </Link>
             )
           })}
         </nav>
 
-        <div className="p-4 border-t border-indigo-800">
+        {/* Logout */}
+        <div className="p-4 relative z-10">
           <button
             onClick={handleLogout}
-            className="flex items-center space-x-3 px-3 py-2.5 w-full rounded-lg text-indigo-200 hover:bg-indigo-800 hover:text-white transition-colors"
+            className="flex items-center space-x-3 px-4 py-3 w-full rounded-2xl text-white/50 hover:text-white hover:bg-white/10 transition-all duration-200"
           >
-            <LogOut size={20} />
-            <span className="font-medium">Logout</span>
+            <LogOut size={19} />
+            <span className="font-medium text-sm">Logout</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="p-8">
+        <div className="p-8 max-w-[1400px]">
           <Outlet />
         </div>
       </main>

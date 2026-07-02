@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { UserPlus, User, MapPin, FileText, BedDouble, Printer, Check } from 'lucide-react'
 
 export default function GuestRegistration() {
   const navigate = useNavigate()
@@ -85,31 +87,47 @@ export default function GuestRegistration() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex justify-between items-center hide-print">
-        <h1 className="text-3xl font-bold text-gray-800">Guest Check-In</h1>
-      </div>
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }} 
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h1 className="page-header flex items-center">
+          <UserPlus size={28} className="mr-3 text-brand-500" />
+          Guest Check-In
+        </h1>
+        <p className="page-subheader">Register a new guest and assign a room</p>
+      </motion.div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 print-area">
-        <div className="hidden print:block text-center mb-8 pb-4 border-b">
-          <h1 className="text-3xl font-bold">LUMIERE HOTEL</h1>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="glass-card-solid overflow-hidden print-area"
+      >
+        {/* Print header */}
+        <div className="hidden print:block text-center p-8 border-b">
+          <h1 className="text-3xl font-display font-bold">JOSHI GUEST HOUSE</h1>
           <p className="text-gray-500">Guest Registration Card</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+          {/* Guest Details Section */}
           <div>
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Guest Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center border-b border-surface-100 pb-3">
+              <User size={16} className="mr-2 text-brand-400" /> Guest Details
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input required type="text" name="name" onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Full Name</label>
+                <input required type="text" name="name" onChange={handleChange} className="input-field" placeholder="Enter full name" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                <input required type="tel" name="phone" onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Phone Number</label>
+                <input required type="tel" name="phone" onChange={handleChange} className="input-field" placeholder="+91 XXXXX XXXXX" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ID Proof Type</label>
-                <select name="id_proof_type" onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">ID Proof Type</label>
+                <select name="id_proof_type" onChange={handleChange} className="select-field">
                   <option>Aadhar</option>
                   <option>Passport</option>
                   <option>Driving License</option>
@@ -117,26 +135,29 @@ export default function GuestRegistration() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
-                <input required type="text" name="id_proof_number" onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">ID Number</label>
+                <input required type="text" name="id_proof_number" onChange={handleChange} className="input-field" placeholder="XXXX-XXXX-XXXX" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Address</label>
-                <textarea required name="address" rows="2" onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Full Address</label>
+                <textarea required name="address" rows="2" onChange={handleChange} className="input-field resize-none" placeholder="Street, City, State, PIN"></textarea>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
-                <input required type="text" name="nationality" defaultValue="Indian" onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nationality</label>
+                <input required type="text" name="nationality" defaultValue="Indian" onChange={handleChange} className="input-field" />
               </div>
             </div>
           </div>
 
+          {/* Stay Details Section */}
           <div>
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Stay Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center border-b border-surface-100 pb-3">
+              <BedDouble size={16} className="mr-2 text-brand-400" /> Stay Details
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Assign Room</label>
-                <select required name="room_id" onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Assign Room</label>
+                <select required name="room_id" onChange={handleChange} className="select-field">
                   <option value="">Select a room...</option>
                   {availableRooms.map(room => (
                     <option key={room.id} value={room.id}>Room {room.room_number} - {room.room_type}</option>
@@ -144,30 +165,45 @@ export default function GuestRegistration() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests</label>
-                <input required type="number" min="1" name="num_guests" defaultValue={1} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Number of Guests</label>
+                <input required type="number" min="1" name="num_guests" defaultValue={1} onChange={handleChange} className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Check-in Date & Time</label>
-                <input required type="datetime-local" name="check_in" value={formData.check_in} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Check-in Date & Time</label>
+                <input required type="datetime-local" name="check_in" value={formData.check_in} onChange={handleChange} className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Expected Check-out</label>
-                <input required type="datetime-local" name="check_out" onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Expected Check-out</label>
+                <input required type="datetime-local" name="check_out" onChange={handleChange} className="input-field" />
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end space-x-4 pt-4 hide-print">
-            <button type="button" onClick={() => window.print()} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-              Print Slip
-            </button>
-            <button type="submit" disabled={loading || !formData.room_id} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
-              {loading ? 'Processing...' : 'Complete Check-In'}
-            </button>
+          {/* Actions */}
+          <div className="flex justify-end space-x-3 pt-4 border-t border-surface-100 hide-print">
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              type="button" 
+              onClick={() => window.print()} 
+              className="btn-brand-outline flex items-center space-x-2"
+            >
+              <Printer size={16} />
+              <span>Print Slip</span>
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              type="submit" 
+              disabled={loading || !formData.room_id} 
+              className="btn-brand flex items-center space-x-2"
+            >
+              <Check size={16} />
+              <span>{loading ? 'Processing...' : 'Complete Check-In'}</span>
+            </motion.button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   )
 }

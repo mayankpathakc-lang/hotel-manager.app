@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { IndianRupee, TrendingUp, Calendar as CalendarIcon, Download } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { IndianRupee, TrendingUp, Calendar as CalendarIcon, Download, BarChart3, Receipt } from 'lucide-react'
 
 export default function Reports() {
   const [sales, setSales] = useState({ total: 0, bills: [] })
@@ -51,64 +52,126 @@ export default function Reports() {
     document.body.removeChild(link)
   }
 
-  if (loading) return <div>Loading reports...</div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-500 rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-800">Sales Dashboard</h1>
-        <button onClick={exportCSV} className="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg font-medium hover:bg-indigo-100 transition-colors">
-          <Download size={18} className="mr-2" /> Export CSV
-        </button>
-      </div>
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }} 
+        animate={{ opacity: 1, y: 0 }}
+        className="flex justify-between items-center"
+      >
+        <div>
+          <h1 className="page-header flex items-center">
+            <BarChart3 size={28} className="mr-3 text-brand-500" />
+            Sales Dashboard
+          </h1>
+          <p className="page-subheader">Today's performance overview</p>
+        </div>
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={exportCSV} 
+          className="btn-brand-outline flex items-center space-x-2"
+        >
+          <Download size={16} />
+          <span>Export CSV</span>
+        </motion.button>
+      </motion.div>
 
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-indigo-100 font-medium">Today's Revenue</h3>
-            <div className="p-2 bg-white/20 rounded-lg"><IndianRupee size={20} /></div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="relative overflow-hidden rounded-3xl p-6 text-white shadow-glass-lg"
+          style={{ background: 'linear-gradient(135deg, #CC7219 0%, #E88526 40%, #FF9933 100%)' }}
+        >
+          <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-brand-100 font-semibold text-sm">Today's Revenue</h3>
+              <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-sm"><IndianRupee size={18} /></div>
+            </div>
+            <p className="text-4xl font-display font-extrabold tracking-tight">₹{sales.total.toLocaleString()}</p>
+            <p className="text-brand-200 text-sm mt-2 flex items-center font-medium">
+              <TrendingUp size={14} className="mr-1" /> Active business day
+            </p>
           </div>
-          <p className="text-4xl font-bold tracking-tight">₹{sales.total.toLocaleString()}</p>
-          <p className="text-indigo-200 text-sm mt-2 flex items-center"><TrendingUp size={14} className="mr-1" /> +12% from yesterday</p>
-        </div>
+        </motion.div>
         
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="glass-card-solid p-6"
+        >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-500 font-medium">Total Bills Generated</h3>
-            <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><CalendarIcon size={20} /></div>
+            <h3 className="text-gray-400 font-semibold text-sm">Bills Generated</h3>
+            <div className="p-2.5 bg-pastel-mint rounded-2xl"><Receipt size={18} className="text-emerald-500" /></div>
           </div>
-          <p className="text-4xl font-bold text-gray-800">{sales.bills.length}</p>
-          <p className="text-emerald-500 text-sm mt-2">Active business day</p>
-        </div>
+          <p className="text-4xl font-display font-extrabold text-gray-800">{sales.bills.length}</p>
+          <p className="text-emerald-500 text-sm mt-2 font-medium">Total transactions</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="glass-card-solid p-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-gray-400 font-semibold text-sm">Avg. Bill Value</h3>
+            <div className="p-2.5 bg-pastel-sky rounded-2xl"><CalendarIcon size={18} className="text-sky-500" /></div>
+          </div>
+          <p className="text-4xl font-display font-extrabold text-gray-800">
+            ₹{sales.bills.length > 0 ? Math.round(sales.total / sales.bills.length).toLocaleString() : 0}
+          </p>
+          <p className="text-sky-500 text-sm mt-2 font-medium">Per transaction</p>
+        </motion.div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-8">
-        <div className="p-6 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-800">Recent Transactions</h2>
+      {/* Transaction Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="section-card"
+      >
+        <div className="section-card-header flex justify-between items-center">
+          <h2 className="text-lg font-display font-bold text-gray-800">Recent Transactions</h2>
+          <span className="text-xs text-gray-400 font-medium">{new Date().toLocaleDateString()}</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="data-table">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="p-4 font-semibold text-xs text-gray-500 uppercase tracking-wider">Time</th>
-                <th className="p-4 font-semibold text-xs text-gray-500 uppercase tracking-wider">Order Details</th>
-                <th className="p-4 font-semibold text-xs text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="p-4 font-semibold text-xs text-gray-500 uppercase tracking-wider">Payment Mode</th>
+              <tr>
+                <th>Time</th>
+                <th>Order Details</th>
+                <th>Amount</th>
+                <th>Payment Mode</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {sales.bills.map((bill, idx) => (
-                <tr key={bill.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="p-4 text-sm text-gray-600">{new Date(bill.created_at).toLocaleTimeString()}</td>
-                  <td className="p-4">
-                    <span className="font-medium text-gray-800 block">Bill #{bill.id.slice(0,8)}</span>
-                    <span className="text-xs text-gray-500">{bill.orders?.is_takeaway ? 'Takeaway' : `Table ${bill.orders?.table_number}`}</span>
+            <tbody>
+              {sales.bills.map((bill) => (
+                <tr key={bill.id}>
+                  <td className="text-gray-500 text-xs font-medium">{new Date(bill.created_at).toLocaleTimeString()}</td>
+                  <td>
+                    <span className="font-semibold text-gray-800 block text-sm">Bill #{bill.id.slice(0,8)}</span>
+                    <span className="text-xs text-gray-400">{bill.orders?.is_takeaway ? '🛍️ Takeaway' : `🍽️ Table ${bill.orders?.table_number}`}</span>
                   </td>
-                  <td className="p-4 font-semibold text-gray-900">₹{bill.total}</td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      bill.payment_mode === 'Cash' ? 'bg-emerald-100 text-emerald-800' :
-                      bill.payment_mode === 'UPI' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                  <td className="font-display font-bold text-brand-600">₹{bill.total}</td>
+                  <td>
+                    <span className={`badge text-[10px] ${
+                      bill.payment_mode === 'Cash' ? 'bg-pastel-mint text-emerald-700' :
+                      bill.payment_mode === 'UPI' ? 'bg-pastel-sky text-sky-700' : 'bg-pastel-lavender text-brand-700'
                     }`}>
                       {bill.payment_mode}
                     </span>
@@ -117,13 +180,16 @@ export default function Reports() {
               ))}
               {sales.bills.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="p-8 text-center text-gray-500">No transactions yet today.</td>
+                  <td colSpan="4" className="p-12 text-center text-gray-400">
+                    <BarChart3 size={32} className="mx-auto mb-3 text-gray-300" />
+                    <p className="font-medium">No transactions yet today</p>
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

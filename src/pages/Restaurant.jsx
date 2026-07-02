@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { motion } from 'framer-motion'
-import { Plus, Minus, ShoppingCart, Trash2, UtensilsCrossed, Send } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, Minus, ShoppingCart, Trash2, UtensilsCrossed, Send, BedDouble, User, X, Printer } from 'lucide-react'
 
 export default function Restaurant() {
   const [menu, setMenu] = useState([])
@@ -11,9 +11,16 @@ export default function Restaurant() {
   const [tableNumber, setTableNumber] = useState('')
   const [isTakeaway, setIsTakeaway] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [placedOrderDetails, setPlacedOrderDetails] = useState(null)
+
+  // New: order type and room linking
+  const [orderType, setOrderType] = useState('walkin') // 'walkin' or 'room'
+  const [activeBookings, setActiveBookings] = useState([])
+  const [selectedBookingId, setSelectedBookingId] = useState('')
 
   useEffect(() => {
     fetchMenu()
+    fetchActiveBookings()
   }, [])
 
   const fetchMenu = async () => {
@@ -24,6 +31,15 @@ export default function Restaurant() {
       setCategories(cats)
     }
     setLoading(false)
+  }
+
+  const fetchActiveBookings = async () => {
+    const { data } = await supabase
+      .from('bookings')
+      .select('*, guests(name), rooms(room_number)')
+      .eq('status', 'Active')
+      .order('check_in', { ascending: true })
+    if (data) setActiveBookings(data)
   }
 
   const addToOrder = (item) => {
@@ -49,12 +65,24 @@ export default function Restaurant() {
 
   const placeOrder = async () => {
     if (order.length === 0) return alert('Order is empty')
-    if (!isTakeaway && !tableNumber) return alert('Please enter a table number')
+    
+    if (orderType === 'walkin') {
+      if (!isTakeaway && !tableNumber) return alert('Please enter a table number')
+    } else {
+      if (!selectedBookingId) return alert('Please select a guest room')
+    }
 
     try {
+      const orderPayload = {
+        table_number: orderType === 'walkin' ? tableNumber : null,
+        is_takeaway: orderType === 'walkin' ? isTakeaway : false,
+        status: 'Pending',
+        booking_id: orderType === 'room' ? selectedBookingId : null
+      }
+
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
-        .insert([{ table_number: tableNumber, is_takeaway: isTakeaway, status: 'Pending' }])
+        .insert([orderPayload])
         .select()
         .single()
       
@@ -70,9 +98,23 @@ export default function Restaurant() {
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
       if (itemsError) throw itemsError
 
-      alert('Order placed successfully! Order ID: ' + newOrder.id)
+      const booking = orderType === 'room' ? activeBookings.find(b => b.id === selectedBookingId) : null
+      const guestName = booking?.guests?.name || null
+      const roomNum = booking?.rooms?.room_number || null
+
+      setPlacedOrderDetails({
+        order_id: newOrder.id,
+        created_at: newOrder.created_at,
+        table_number: orderType === 'walkin' ? tableNumber : null,
+        is_takeaway: orderType === 'walkin' ? isTakeaway : false,
+        room_number: roomNum,
+        guest_name: guestName,
+        items: order.map(item => ({ name: item.name, quantity: item.quantity }))
+      })
+      
       setOrder([])
       setTableNumber('')
+      setSelectedBookingId('')
     } catch (err) {
       alert('Error placing order: ' + err.message)
     }
@@ -158,23 +200,66 @@ export default function Restaurant() {
             </h2>
           </div>
           
+          {/* Order Type Selection */}
           <div className="p-4 border-b border-surface-100 space-y-3">
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${
-                isTakeaway ? 'bg-brand-500 border-brand-500' : 'border-surface-300'
-              }`} onClick={() => setIsTakeaway(!isTakeaway)}>
-                {isTakeaway && <span className="text-white text-xs">✓</span>}
-              </div>
-              <span className="text-sm font-semibold text-gray-700">Takeaway</span>
-            </label>
-            {!isTakeaway && (
-              <input 
-                type="text" 
-                placeholder="Table Number" 
-                value={tableNumber} 
-                onChange={e => setTableNumber(e.target.value)}
-                className="input-field text-sm py-2.5"
-              />
+            <div className="flex space-x-2">
+              <button
+                onClick={() => { setOrderType('walkin'); setSelectedBookingId('') }}
+                className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center space-x-1.5 ${
+                  orderType === 'walkin'
+                    ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-pastel'
+                    : 'bg-surface-100 text-gray-600 hover:bg-surface-200'
+                }`}
+              >
+                <User size={14} />
+                <span>Walk-in / Table</span>
+              </button>
+              <button
+                onClick={() => { setOrderType('room'); setIsTakeaway(false); setTableNumber('') }}
+                className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center space-x-1.5 ${
+                  orderType === 'room'
+                    ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-pastel'
+                    : 'bg-surface-100 text-gray-600 hover:bg-surface-200'
+                }`}
+              >
+                <BedDouble size={14} />
+                <span>Charge to Room</span>
+              </button>
+            </div>
+
+            {orderType === 'walkin' ? (
+              <>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${
+                    isTakeaway ? 'bg-brand-500 border-brand-500' : 'border-surface-300'
+                  }`} onClick={() => setIsTakeaway(!isTakeaway)}>
+                    {isTakeaway && <span className="text-white text-xs">✓</span>}
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">Takeaway</span>
+                </label>
+                {!isTakeaway && (
+                  <input 
+                    type="text" 
+                    placeholder="Table Number" 
+                    value={tableNumber} 
+                    onChange={e => setTableNumber(e.target.value)}
+                    className="input-field text-sm py-2.5"
+                  />
+                )}
+              </>
+            ) : (
+              <select
+                value={selectedBookingId}
+                onChange={e => setSelectedBookingId(e.target.value)}
+                className="select-field text-sm"
+              >
+                <option value="">Select a guest room...</option>
+                {activeBookings.map(b => (
+                  <option key={b.id} value={b.id}>
+                    Room {b.rooms?.room_number} — {b.guests?.name}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
 
@@ -222,11 +307,140 @@ export default function Restaurant() {
               className="btn-brand w-full flex items-center justify-center space-x-2"
             >
               <Send size={16} />
-              <span>Place Order</span>
+              <span>{orderType === 'room' ? 'Charge to Room' : 'Place Order'}</span>
             </motion.button>
           </div>
         </motion.div>
       </div>
+
+      {/* KOT Modal (On-Screen Preview) */}
+      <AnimatePresence>
+        {placedOrderDetails && (
+          <div className="modal-overlay hide-print" onClick={() => setPlacedOrderDetails(null)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="modal-content max-w-sm p-6 relative bg-white"
+            >
+              <div className="text-center pb-4 border-b border-dashed border-surface-200">
+                <div className="w-12 h-12 rounded-2xl bg-brand-50 flex items-center justify-center mx-auto mb-3 text-brand-500">
+                  <UtensilsCrossed size={22} />
+                </div>
+                <h2 className="text-xl font-display font-extrabold tracking-wide text-brand-600">JOSHI GUEST HOUSE</h2>
+                <p className="text-xs uppercase tracking-widest font-semibold text-gray-400 mt-1">Kitchen Order Ticket (KOT)</p>
+              </div>
+
+              <div className="my-4 space-y-2 text-xs text-gray-600">
+                <div className="flex justify-between">
+                  <span><strong>Date:</strong> {new Date(placedOrderDetails.created_at).toLocaleDateString()}</span>
+                  <span><strong>Time:</strong> {new Date(placedOrderDetails.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span><strong>Order ID:</strong> #{placedOrderDetails.order_id.slice(0, 8)}</span>
+                  <span>
+                    <strong>Type:</strong>{' '}
+                    <span className="font-extrabold text-brand-600">
+                      {placedOrderDetails.is_takeaway
+                        ? 'Takeaway'
+                        : placedOrderDetails.room_number
+                        ? `Room ${placedOrderDetails.room_number}`
+                        : `Table ${placedOrderDetails.table_number}`}
+                    </span>
+                  </span>
+                </div>
+                {placedOrderDetails.guest_name && (
+                  <div className="pt-1 border-t border-surface-100">
+                    <strong>Guest Name:</strong> {placedOrderDetails.guest_name}
+                  </div>
+                )}
+              </div>
+
+              <table className="w-full text-sm border-t border-b border-surface-100 my-4">
+                <thead>
+                  <tr className="text-left text-xs text-gray-400 uppercase">
+                    <th className="py-2">Item Name</th>
+                    <th className="py-2 text-right">Qty</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-50 font-medium">
+                  {placedOrderDetails.items.map((item, i) => (
+                    <tr key={i} className="text-gray-800">
+                      <td className="py-2.5">{item.name}</td>
+                      <td className="py-2.5 text-right font-extrabold text-brand-600 text-base">{item.quantity}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="flex space-x-3 hide-print mt-6">
+                <button
+                  onClick={() => window.print()}
+                  className="btn-brand flex-1 flex items-center justify-center space-x-2 py-3"
+                >
+                  <Printer size={16} />
+                  <span>Print KOT</span>
+                </button>
+                <button
+                  onClick={() => setPlacedOrderDetails(null)}
+                  className="btn-brand-outline px-4 py-3 flex items-center justify-center"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Print-only KOT Container */}
+      {placedOrderDetails && (
+        <div className="hidden print:block print-area text-black p-4 space-y-4" style={{ width: '100%', maxWidth: '80mm' }}>
+          <div className="text-center pb-3 border-b border-dashed border-gray-400">
+            <h2 className="text-xl font-display font-extrabold tracking-wide">JOSHI GUEST HOUSE</h2>
+            <p className="text-xs uppercase tracking-widest font-semibold text-gray-500 mt-1">Kitchen Order Ticket (KOT)</p>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 py-1">
+            <div><strong>Date:</strong> {new Date(placedOrderDetails.created_at).toLocaleDateString()}</div>
+            <div className="text-right"><strong>Time:</strong> {new Date(placedOrderDetails.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            <div><strong>Order ID:</strong> #{placedOrderDetails.order_id.slice(0, 8)}</div>
+            <div className="text-right">
+              <strong>Type:</strong>{' '}
+              {placedOrderDetails.is_takeaway
+                ? 'Takeaway'
+                : placedOrderDetails.room_number
+                ? `Room ${placedOrderDetails.room_number}`
+                : `Table ${placedOrderDetails.table_number}`}
+            </div>
+            {placedOrderDetails.guest_name && (
+              <div className="col-span-2"><strong>Guest:</strong> {placedOrderDetails.guest_name}</div>
+            )}
+          </div>
+
+          <table className="w-full text-sm border-t border-b border-gray-200 my-2">
+            <thead>
+              <tr className="text-left text-xs text-gray-500 uppercase">
+                <th className="py-2">Item Name</th>
+                <th className="py-2 text-right">Qty</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 font-medium">
+              {placedOrderDetails.items.map((item, i) => (
+                <tr key={i} className="text-gray-800">
+                  <td className="py-2">{item.name}</td>
+                  <td className="py-2 text-right font-extrabold text-lg">{item.quantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="text-center pt-2 text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
+            Kitchen Copy • Joshi Guest House
+          </div>
+        </div>
+      )}
     </div>
   )
 }

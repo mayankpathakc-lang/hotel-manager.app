@@ -39,7 +39,10 @@ export default function OccupancyChart() {
       .gte('check_out', monthStart.toISOString())
       .lte('check_in', monthEnd.toISOString())
 
-    if (roomData) setRooms(roomData)
+    if (roomData) {
+      const sorted = [...roomData].sort((a, b) => parseInt(a.room_number, 10) - parseInt(b.room_number, 10))
+      setRooms(sorted)
+    }
     if (bookingData) setBookings(bookingData)
     setLoading(false)
   }

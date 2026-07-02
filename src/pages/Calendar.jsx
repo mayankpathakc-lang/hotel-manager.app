@@ -41,7 +41,10 @@ export default function Calendar() {
 
   const fetchRooms = async () => {
     const { data } = await supabase.from('rooms').select('*').order('room_number')
-    if (data) setRooms(data)
+    if (data) {
+      const sorted = [...data].sort((a, b) => parseInt(a.room_number, 10) - parseInt(b.room_number, 10))
+      setRooms(sorted)
+    }
     setLoading(false)
   }
 

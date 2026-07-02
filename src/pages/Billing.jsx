@@ -8,9 +8,10 @@ export default function Billing() {
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [orderDetails, setOrderDetails] = useState([])
-  const [taxPercent, setTaxPercent] = useState(5)
   const [discount, setDiscount] = useState(0)
   const [paymentMode, setPaymentMode] = useState('Cash')
+  const [roomChargedCount, setRoomChargedCount] = useState(0)
+  const [billComplete, setBillComplete] = useState(false)
 
   useEffect(() => {
     fetchPendingOrders()
@@ -18,12 +19,19 @@ export default function Billing() {
 
   const fetchPendingOrders = async () => {
     const { data } = await supabase.from('orders').select('*').eq('status', 'Pending').order('created_at', { ascending: false })
-    if (data) setOrders(data)
+    if (data) {
+      // Only show walk-in orders (no booking_id) for immediate billing
+      const walkinOrders = data.filter(o => !o.booking_id)
+      const roomOrders = data.filter(o => o.booking_id)
+      setOrders(walkinOrders)
+      setRoomChargedCount(roomOrders.length)
+    }
     setLoading(false)
   }
 
   const handleSelectOrder = async (order) => {
     setSelectedOrder(order)
+    setBillComplete(false)
     const { data } = await supabase
       .from('order_items')
       .select('*, menu_items(name)')
@@ -33,8 +41,7 @@ export default function Billing() {
   }
 
   const subtotal = orderDetails.reduce((sum, item) => sum + (item.price_at_time * item.quantity), 0)
-  const taxAmount = (subtotal * taxPercent) / 100
-  const grandTotal = subtotal + taxAmount - discount
+  const grandTotal = subtotal - discount
 
   const handleGenerateBill = async () => {
     try {
@@ -43,7 +50,7 @@ export default function Billing() {
         .insert([{
           order_id: selectedOrder.id,
           subtotal,
-          tax_percent: taxPercent,
+          tax_percent: 0,
           discount,
           total: grandTotal,
           payment_mode: paymentMode,
@@ -56,9 +63,7 @@ export default function Billing() {
 
       await supabase.from('orders').update({ status: 'Paid' }).eq('id', selectedOrder.id)
       
-      alert('Bill generated and marked as paid!')
-      setSelectedOrder(null)
-      fetchPendingOrders()
+      setBillComplete(true)
     } catch (err) {
       alert('Error: ' + err.message)
     }
@@ -94,6 +99,11 @@ export default function Billing() {
               Pending Orders
               <span className="ml-auto badge bg-pastel-yellow text-amber-700 text-[10px]">{orders.length}</span>
             </h2>
+            {roomChargedCount > 0 && (
+              <p className="text-[11px] text-gray-400 mt-2 bg-pastel-sky/40 px-3 py-1.5 rounded-xl">
+                🏨 {roomChargedCount} order{roomChargedCount > 1 ? 's' : ''} charged to rooms — will settle at checkout
+              </p>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {orders.map(order => (
@@ -153,7 +163,7 @@ export default function Billing() {
               </div>
 
               {/* Items */}
-              <div className="flex-1 p-6">
+              <div className="flex-1 p-6 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b-2 border-surface-200">
@@ -183,16 +193,8 @@ export default function Billing() {
                   <span className="font-semibold">₹{subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm items-center hide-print">
-                  <span className="text-gray-500">Tax (%)</span>
-                  <input type="number" value={taxPercent} onChange={e=>setTaxPercent(Number(e.target.value))} className="w-20 input-field text-right text-sm py-1.5" />
-                </div>
-                <div className="flex justify-between text-sm hidden print:flex">
-                  <span className="text-gray-500">Tax ({taxPercent}%)</span>
-                  <span>₹{taxAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm items-center hide-print">
                   <span className="text-gray-500">Discount (₹)</span>
-                  <input type="number" value={discount} onChange={e=>setDiscount(Number(e.target.value))} className="w-20 input-field text-right text-sm py-1.5" />
+                  <input type="number" value={discount} onChange={e=>setDiscount(Number(e.target.value))} className="w-20 input-field text-right text-sm py-1.5" disabled={billComplete} />
                 </div>
                 <div className="flex justify-between text-sm hidden print:flex">
                   <span className="text-gray-500">Discount</span>
@@ -207,43 +209,70 @@ export default function Billing() {
 
               {/* Actions */}
               <div className="p-6 border-t border-surface-100 bg-surface-50 hide-print">
-                <div className="flex items-center space-x-3 mb-5">
-                  <span className="text-sm font-semibold text-gray-600">Payment:</span>
-                  {['Cash', 'UPI', 'Card'].map(mode => (
-                    <button
-                      key={mode}
-                      onClick={() => setPaymentMode(mode)}
-                      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                        paymentMode === mode 
-                          ? 'bg-brand-500 text-white shadow-pastel' 
-                          : 'bg-white border border-surface-200 text-gray-600 hover:border-brand-200'
-                      }`}
-                    >
-                      {mode}
-                    </button>
-                  ))}
-                </div>
-                
-                <div className="flex space-x-3">
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => window.print()} 
-                    className="btn-brand-outline flex-1 flex items-center justify-center space-x-2"
-                  >
-                    <Printer size={16} />
-                    <span>Print Bill</span>
-                  </motion.button>
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleGenerateBill} 
-                    className="btn-brand flex-1 flex items-center justify-center space-x-2"
-                  >
-                    <CheckCircle2 size={16} />
-                    <span>Mark as Paid</span>
-                  </motion.button>
-                </div>
+                {billComplete ? (
+                  <div className="text-center space-y-4">
+                    <div className="text-emerald-600 font-bold text-sm bg-emerald-50 py-2 rounded-xl flex items-center justify-center">
+                      ✓ Bill settled and marked as paid!
+                    </div>
+                    <div className="flex space-x-3">
+                      <motion.button 
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => window.print()} 
+                        className="btn-brand flex-1 flex items-center justify-center space-x-2 py-3"
+                      >
+                        <Printer size={16} />
+                        <span>Print Receipt</span>
+                      </motion.button>
+                      <button 
+                        onClick={() => { setSelectedOrder(null); setBillComplete(false); fetchPendingOrders() }}
+                        className="btn-brand-outline px-4 py-3 text-xs font-bold"
+                      >
+                        Done / Next Order
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center space-x-3 mb-5">
+                      <span className="text-sm font-semibold text-gray-600">Payment:</span>
+                      {['Cash', 'UPI', 'Card'].map(mode => (
+                        <button
+                          key={mode}
+                          onClick={() => setPaymentMode(mode)}
+                          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                            paymentMode === mode 
+                              ? 'bg-brand-500 text-white shadow-pastel' 
+                              : 'bg-white border border-surface-200 text-gray-600 hover:border-brand-200'
+                          }`}
+                        >
+                          {mode}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <div className="flex space-x-3">
+                      <motion.button 
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => window.print()} 
+                        className="btn-brand-outline flex-1 flex items-center justify-center space-x-2"
+                      >
+                        <Printer size={16} />
+                        <span>Print Bill</span>
+                      </motion.button>
+                      <motion.button 
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleGenerateBill} 
+                        className="btn-brand flex-1 flex items-center justify-center space-x-2"
+                      >
+                        <CheckCircle2 size={16} />
+                        <span>Mark as Paid</span>
+                      </motion.button>
+                    </div>
+                  </>
+                )}
               </div>
               
               <div className="hidden print:block p-8 text-center text-sm text-gray-500 border-t">

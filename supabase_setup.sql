@@ -7,21 +7,21 @@ ALTER TABLE bills DISABLE ROW LEVEL SECURITY;
 ALTER TABLE menu_items DISABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items DISABLE ROW LEVEL SECURITY;
 
--- Clear existing rooms if any, and insert the 14 rooms
+-- Clear existing rooms if any, and insert the rooms
 TRUNCATE TABLE rooms CASCADE;
 
-INSERT INTO rooms (room_number, room_type, floor, status) VALUES
-  ('101', 'Suite', 1, 'Available'),
-  ('102', 'Suite', 1, 'Available'),
-  ('103', 'Deluxe', 1, 'Available'),
-  ('104', 'Deluxe', 1, 'Available'),
-  ('105', 'Deluxe', 1, 'Available'),
-  ('106', 'Deluxe', 1, 'Available'),
-  ('107', 'Double', 1, 'Available'),
-  ('108', 'Double', 1, 'Available'),
-  ('109', 'Double', 1, 'Available'),
-  ('110', 'Double', 1, 'Available'),
-  ('111', 'Standard', 1, 'Available'),
-  ('112', 'Standard', 1, 'Available'),
-  ('113', 'Standard', 1, 'Available'),
-  ('114', 'Standard', 1, 'Available');
+INSERT INTO rooms (room_number, room_type, floor, status, price_per_night) VALUES
+  ('1', 'Premium', 1, 'Available', 1800),
+  ('2', 'Premium', 1, 'Available', 1800),
+  ('3', 'Premium', 1, 'Available', 1800),
+  ('4', 'Standard', 1, 'Available', 1500),
+  ('5', 'Standard', 1, 'Available', 1500),
+  ('6', 'Standard', 1, 'Available', 1500),
+  ('7', 'Budget', 1, 'Available', 1200),
+  ('8', 'Budget', 1, 'Available', 1200),
+  ('9', 'Budget', 1, 'Available', 1200),
+  ('10', 'Budget', 1, 'Available', 1200),
+  ('11', 'Budget', 1, 'Available', 1200),
+  ('12', 'Cottage', 1, 'Available', 2000),
+  ('14', 'Cottage', 1, 'Available', 2000),
+  ('15', 'Cottage', 1, 'Available', 2000);

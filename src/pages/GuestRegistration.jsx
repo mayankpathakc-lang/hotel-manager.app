@@ -25,7 +25,10 @@ export default function GuestRegistration() {
   useEffect(() => {
     const fetchRooms = async () => {
       const { data } = await supabase.from('rooms').select('*').eq('status', 'Available')
-      if (data) setAvailableRooms(data)
+      if (data) {
+        const sorted = [...data].sort((a, b) => parseInt(a.room_number, 10) - parseInt(b.room_number, 10))
+        setAvailableRooms(sorted)
+      }
     }
     fetchRooms()
   }, [])

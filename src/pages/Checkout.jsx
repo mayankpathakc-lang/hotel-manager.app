@@ -3,7 +3,8 @@ import { supabase } from '../lib/supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   DoorOpen, Search, User, BedDouble, Clock, IndianRupee, 
-  CheckCircle2, X, AlertTriangle, Printer, Phone, MapPin
+  CheckCircle2, X, AlertTriangle, Printer, Phone, MapPin,
+  ChevronDown, ChevronRight, UtensilsCrossed
 } from 'lucide-react'
 
 export default function Checkout() {
@@ -19,6 +20,10 @@ export default function Checkout() {
   const [discount, setDiscount] = useState(0)
   const [paymentMode, setPaymentMode] = useState('Cash')
   const [checkoutComplete, setCheckoutComplete] = useState(false)
+
+  // New: restaurant orders linked to the booking
+  const [linkedOrders, setLinkedOrders] = useState([])
+  const [expandedOrderId, setExpandedOrderId] = useState(null)
 
   useEffect(() => {
     fetchActiveBookings()
@@ -41,21 +46,53 @@ export default function Checkout() {
     b.booking_id?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const handleSelect = (booking) => {
+  const handleSelect = async (booking) => {
     setSelectedBooking(booking)
     setCheckoutComplete(false)
+    setExpandedOrderId(null)
     
     // Calculate room charges based on days stayed
     const checkIn = new Date(booking.check_in)
     const now = new Date()
     const daysStayed = Math.max(1, Math.ceil((now - checkIn) / (1000 * 60 * 60 * 24)))
-    const ratePerDay = booking.rooms?.room_type === 'Suite' ? 5000 : 
-                       booking.rooms?.room_type === 'Deluxe' ? 3000 : 
-                       booking.rooms?.room_type === 'Double' ? 2000 : 1500
+    const ratePerDay = booking.rooms?.room_type === 'Premium' ? 1800 : 
+                       booking.rooms?.room_type === 'Standard' ? 1500 : 
+                       booking.rooms?.room_type === 'Budget' ? 1200 : 
+                       (booking.rooms?.room_type === 'Cottage' || booking.rooms?.room_type === 'Cottages') ? 2000 : 1500
     setRoomCharges(daysStayed * ratePerDay)
-    setRestaurantCharges(0)
     setExtraCharges(0)
     setDiscount(0)
+
+    // Fetch linked restaurant orders
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('booking_id', booking.id)
+      .eq('status', 'Pending')
+      .order('created_at', { ascending: true })
+
+    if (orders && orders.length > 0) {
+      // For each order, fetch its items
+      const ordersWithItems = await Promise.all(
+        orders.map(async (order) => {
+          const { data: items } = await supabase
+            .from('order_items')
+            .select('*, menu_items(name)')
+            .eq('order_id', order.id)
+          return {
+            ...order,
+            items: items || [],
+            total: (items || []).reduce((sum, item) => sum + (item.price_at_time * item.quantity), 0)
+          }
+        })
+      )
+      setLinkedOrders(ordersWithItems)
+      const totalRestaurant = ordersWithItems.reduce((sum, o) => sum + o.total, 0)
+      setRestaurantCharges(totalRestaurant)
+    } else {
+      setLinkedOrders([])
+      setRestaurantCharges(0)
+    }
   }
 
   const subtotal = roomCharges + restaurantCharges + extraCharges
@@ -93,6 +130,15 @@ export default function Checkout() {
         .from('rooms')
         .update({ status: 'Available' })
         .eq('id', selectedBooking.room_id)
+
+      // Mark all linked restaurant orders as Paid
+      if (linkedOrders.length > 0) {
+        const orderIds = linkedOrders.map(o => o.id)
+        await supabase
+          .from('orders')
+          .update({ status: 'Paid' })
+          .in('id', orderIds)
+      }
 
       setCheckoutComplete(true)
       fetchActiveBookings()
@@ -297,10 +343,81 @@ export default function Checkout() {
                       <input type="number" value={roomCharges} onChange={e => setRoomCharges(Number(e.target.value))} className="w-28 input-field text-right text-sm py-2" />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between bg-surface-50 rounded-2xl p-4">
-                    <span className="text-sm font-medium text-gray-600">Restaurant Charges</span>
-                    <input type="number" value={restaurantCharges} onChange={e => setRestaurantCharges(Number(e.target.value))} className="w-28 input-field text-right text-sm py-2" />
+
+                  {/* Restaurant Charges - with expandable order details */}
+                  <div className="bg-surface-50 rounded-2xl overflow-hidden">
+                    <div className="flex items-center justify-between p-4">
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <UtensilsCrossed size={14} className="mr-2 text-amber-500" />
+                        Restaurant Charges
+                        {linkedOrders.length > 0 && (
+                          <span className="ml-2 text-[10px] font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-lg">
+                            {linkedOrders.length} order{linkedOrders.length > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-display font-bold text-brand-600 text-sm">₹{restaurantCharges.toLocaleString()}</span>
+                    </div>
+
+                    {/* Expandable orders list */}
+                    {linkedOrders.length > 0 && (
+                      <div className="border-t border-surface-200 mx-4 mb-3">
+                        {linkedOrders.map((order) => (
+                          <div key={order.id} className="border-b border-surface-100 last:border-b-0">
+                            {/* Order row - click to expand */}
+                            <button
+                              onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)}
+                              className="w-full flex items-center justify-between py-3 px-1 text-left hover:bg-surface-100/50 transition-colors rounded-lg"
+                            >
+                              <div className="flex items-center space-x-2">
+                                {expandedOrderId === order.id 
+                                  ? <ChevronDown size={14} className="text-brand-500" />
+                                  : <ChevronRight size={14} className="text-gray-400" />
+                                }
+                                <span className="text-xs font-semibold text-gray-600">
+                                  Order #{order.id.slice(0, 8)}
+                                </span>
+                                <span className="text-[10px] text-gray-400">
+                                  {new Date(order.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}, {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <span className="text-xs font-bold text-brand-600">₹{order.total.toLocaleString()}</span>
+                            </button>
+
+                            {/* Expanded items */}
+                            <AnimatePresence>
+                              {expandedOrderId === order.id && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.2 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="ml-6 mr-1 mb-3 bg-white rounded-xl border border-surface-200 divide-y divide-surface-100">
+                                    {order.items.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between items-center px-3 py-2 text-xs">
+                                        <span className="text-gray-700 font-medium">{item.menu_items?.name || 'Item'}</span>
+                                        <div className="flex items-center space-x-3">
+                                          <span className="text-gray-400">×{item.quantity}</span>
+                                          <span className="font-semibold text-gray-700 w-16 text-right">₹{(item.price_at_time * item.quantity).toLocaleString()}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {linkedOrders.length === 0 && (
+                      <p className="text-[11px] text-gray-400 px-4 pb-3">No restaurant orders linked to this stay</p>
+                    )}
                   </div>
+
                   <div className="flex items-center justify-between bg-surface-50 rounded-2xl p-4">
                     <span className="text-sm font-medium text-gray-600">Extra Services</span>
                     <input type="number" value={extraCharges} onChange={e => setExtraCharges(Number(e.target.value))} className="w-28 input-field text-right text-sm py-2" />

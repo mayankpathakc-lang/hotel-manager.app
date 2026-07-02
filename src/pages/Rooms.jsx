@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, LogOut, Info, AlertTriangle, BedDouble, Wrench, User, Phone, Clock, IndianRupee, Calendar } from 'lucide-react'
 
-const ROOM_RATES = { 'Suite': 5000, 'Deluxe': 3000, 'Double': 2000, 'Single': 1500, 'Standard': 1200 }
+const ROOM_RATES = { 'Premium': 1800, 'Standard': 1500, 'Budget': 1200, 'Cottage': 2000, 'Cottages': 2000 }
 
 export default function Rooms() {
   const [rooms, setRooms] = useState([])
@@ -24,7 +24,10 @@ export default function Rooms() {
   const fetchRoomsAndBookings = async () => {
     const { data: roomData, error: roomError } = await supabase.from('rooms').select('*').order('room_number', { ascending: true })
     if (roomError) console.error("Room fetch error", roomError)
-    if (roomData) setRooms(roomData)
+    if (roomData) {
+      const sorted = [...roomData].sort((a, b) => parseInt(a.room_number, 10) - parseInt(b.room_number, 10))
+      setRooms(sorted)
+    }
 
     const { data: bookingData, error: bookingError } = await supabase
       .from('bookings')
@@ -112,7 +115,6 @@ export default function Rooms() {
                     <span className="text-2xl font-display font-extrabold text-gray-800">{room.room_number}</span>
                     <div className="flex items-center space-x-2 mt-1">
                       <span className="text-[10px] font-bold text-gray-500 bg-white/70 px-2 py-0.5 rounded-lg">{room.room_type}</span>
-                      <span className="text-[10px] text-gray-400">Floor {room.floor}</span>
                     </div>
                   </div>
                   <div className="flex items-center space-x-1.5">
@@ -176,21 +178,17 @@ export default function Rooms() {
               }`}>
                 <div>
                   <h2 className={`text-2xl font-display font-extrabold ${selectedRoom.status === 'Available' ? 'text-gray-800' : 'text-white'}`}>Room {selectedRoom.room_number}</h2>
-                  <p className={`text-sm mt-0.5 ${selectedRoom.status === 'Available' ? 'text-gray-400' : 'text-white/70'}`}>{selectedRoom.room_type} • Floor {selectedRoom.floor}</p>
+                  <p className={`text-sm mt-0.5 ${selectedRoom.status === 'Available' ? 'text-gray-400' : 'text-white/70'}`}>{selectedRoom.room_type}</p>
                 </div>
                 <button onClick={() => setSelectedRoom(null)} className={`p-2 rounded-xl transition-colors ${selectedRoom.status === 'Available' ? 'hover:bg-surface-200 text-gray-500' : 'hover:bg-white/20 text-white'}`}><X size={20} /></button>
               </div>
 
               <div className="p-6 space-y-5">
                 {/* Room Details */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="bg-surface-50 rounded-2xl p-4 text-center">
                     <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Type</p>
                     <p className="font-bold text-sm text-gray-800">{selectedRoom.room_type}</p>
-                  </div>
-                  <div className="bg-surface-50 rounded-2xl p-4 text-center">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Floor</p>
-                    <p className="font-bold text-sm text-gray-800">{selectedRoom.floor}</p>
                   </div>
                   <div className="bg-surface-50 rounded-2xl p-4 text-center">
                     <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Rate</p>

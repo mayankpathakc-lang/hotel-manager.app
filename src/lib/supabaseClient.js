@@ -1,11 +1,13 @@
-// Mock Supabase Client using browser LocalStorage for offline-only usage
+// Database Client wrapper supporting Electron Local JSON Database and browser LocalStorage fallback
+
+const isElectron = typeof window !== 'undefined' && !!window.electronAPI
 
 class QueryBuilder {
-  constructor(table, data) {
+  constructor(table) {
     this.table = table
-    this._data = [...data]
-    this._queryData = [...data]
-    this._error = null
+    this._filters = []
+    this._orders = []
+    this._limit = null
     this._single = false
   }
 
@@ -14,54 +16,32 @@ class QueryBuilder {
   }
 
   eq(column, value) {
-    this._queryData = this._queryData.filter(row => row[column] === value)
+    this._filters.push({ type: 'eq', column, value })
     return this
   }
 
   gte(column, value) {
-    this._queryData = this._queryData.filter(row => {
-      if (!row[column]) return false
-      return new Date(row[column]) >= new Date(value)
-    })
+    this._filters.push({ type: 'gte', column, value })
     return this
   }
 
   lte(column, value) {
-    this._queryData = this._queryData.filter(row => {
-      if (!row[column]) return false
-      return new Date(row[column]) <= new Date(value)
-    })
+    this._filters.push({ type: 'lte', column, value })
     return this
   }
 
   or(filtersString) {
-    const filters = filtersString.split(',').map(f => {
-      const parts = f.split('.')
-      return { col: parts[0], op: parts[1], val: parts[2] }
-    })
-
-    this._queryData = this._queryData.filter(row => {
-      return filters.some(filter => {
-        if (filter.op === 'eq') {
-          return row[filter.col] === filter.val
-        }
-        return false
-      })
-    })
+    this._filters.push({ type: 'or', value: filtersString })
     return this
   }
 
   order(column, { ascending = true } = {}) {
-    this._queryData.sort((a, b) => {
-      if (a[column] < b[column]) return ascending ? -1 : 1
-      if (a[column] > b[column]) return ascending ? 1 : -1
-      return 0
-    })
+    this._orders.push({ column, ascending })
     return this
   }
 
   limit(count) {
-    this._queryData = this._queryData.slice(0, count)
+    this._limit = count
     return this
   }
 
@@ -72,43 +52,103 @@ class QueryBuilder {
 
   async then(resolve, reject) {
     try {
-      await new Promise(r => setTimeout(r, 50))
-      let result = this._queryData
+      let result = []
+      
+      if (isElectron) {
+        const response = await window.electronAPI.query({ table: this.table, action: 'select' })
+        result = response.data || []
+      } else {
+        result = JSON.parse(localStorage.getItem('db_' + this.table) || '[]')
+      }
 
-      // Mock relations/joins
+      // Apply Filters
+      this._filters.forEach(filter => {
+        if (filter.type === 'eq') {
+          result = result.filter(row => row[filter.column] === filter.value)
+        } else if (filter.type === 'gte') {
+          result = result.filter(row => row[filter.column] && new Date(row[filter.column]) >= new Date(filter.value))
+        } else if (filter.type === 'lte') {
+          result = result.filter(row => row[filter.column] && new Date(row[filter.column]) <= new Date(filter.value))
+        } else if (filter.type === 'or') {
+          const parts = filter.value.split(',').map(f => {
+            const inner = f.split('.')
+            return { col: inner[0], op: inner[1], val: inner[2] }
+          })
+          result = result.filter(row => {
+            return parts.some(p => p.op === 'eq' && row[p.col] === p.val)
+          })
+        }
+      })
+
+      // Apply Joins
       if (this.table === 'bookings') {
-        const guests = JSON.parse(localStorage.getItem('db_guests') || '[]')
-        const rooms = JSON.parse(localStorage.getItem('db_rooms') || '[]')
+        let guests = []
+        let rooms = []
+        if (isElectron) {
+          guests = (await window.electronAPI.query({ table: 'guests', action: 'select' })).data || []
+          rooms = (await window.electronAPI.query({ table: 'rooms', action: 'select' })).data || []
+        } else {
+          guests = JSON.parse(localStorage.getItem('db_guests') || '[]')
+          rooms = JSON.parse(localStorage.getItem('db_rooms') || '[]')
+        }
         result = result.map(b => ({
           ...b,
           guests: guests.find(g => g.id === b.guest_id) || null,
           rooms: rooms.find(r => r.id === b.room_id) || null
         }))
       } else if (this.table === 'bills') {
-        const orders = JSON.parse(localStorage.getItem('db_orders') || '[]')
+        let orders = []
+        if (isElectron) {
+          orders = (await window.electronAPI.query({ table: 'orders', action: 'select' })).data || []
+        } else {
+          orders = JSON.parse(localStorage.getItem('db_orders') || '[]')
+        }
         result = result.map(bill => ({
           ...bill,
           orders: orders.find(o => o.id === bill.order_id) || null
         }))
       } else if (this.table === 'order_items') {
-        const menu = JSON.parse(localStorage.getItem('db_menu_items') || '[]')
+        let menu = []
+        if (isElectron) {
+          menu = (await window.electronAPI.query({ table: 'menu_items', action: 'select' })).data || []
+        } else {
+          menu = JSON.parse(localStorage.getItem('db_menu_items') || '[]')
+        }
         result = result.map(item => ({
           ...item,
           menu_items: menu.find(m => m.id === item.menu_item_id) || null
         }))
       }
 
+      // Apply Ordering
+      this._orders.forEach(order => {
+        result.sort((a, b) => {
+          if (a[order.column] < b[order.column]) return order.ascending ? -1 : 1
+          if (a[order.column] > b[order.column]) return order.ascending ? 1 : -1
+          return 0
+        })
+      })
+
+      // Apply Limit
+      if (this._limit !== null) {
+        result = result.slice(0, this._limit)
+      }
+
       if (this._single) {
         result = result.length > 0 ? result[0] : null
       }
 
-      resolve({ data: result, error: this._error, count: Array.isArray(result) ? result.length : (result ? 1 : 0) })
+      resolve({ data: result, error: null, count: Array.isArray(result) ? result.length : (result ? 1 : 0) })
     } catch (err) {
       resolve({ data: null, error: err, count: null })
     }
   }
 
   async insert(rows) {
+    if (isElectron) {
+      return await window.electronAPI.query({ table: this.table, action: 'insert', payload: rows })
+    }
+
     const isArray = Array.isArray(rows)
     const newRows = (isArray ? rows : [rows]).map(row => ({
       id: Math.random().toString(36).substr(2, 9),
@@ -124,11 +164,29 @@ class QueryBuilder {
   }
 
   async update(updates) {
-    const allData = JSON.parse(localStorage.getItem('db_' + this.table) || '[]')
-    const idsToUpdate = new Set(this._queryData.map(r => r.id))
+    let idsToUpdate = []
+    
+    // Evaluate target IDs to update
+    const queryResult = await this
+    if (Array.isArray(queryResult.data)) {
+      idsToUpdate = queryResult.data.map(r => r.id)
+    } else if (queryResult.data) {
+      idsToUpdate = [queryResult.data.id]
+    }
 
+    if (isElectron) {
+      return await window.electronAPI.query({
+        table: this.table,
+        action: 'update',
+        payload: { updates, ids: idsToUpdate }
+      })
+    }
+
+    const allData = JSON.parse(localStorage.getItem('db_' + this.table) || '[]')
+    const idSet = new Set(idsToUpdate)
+    
     const newData = allData.map(row => {
-      if (idsToUpdate.has(row.id)) {
+      if (idSet.has(row.id)) {
         return { ...row, ...updates }
       }
       return row
@@ -136,77 +194,70 @@ class QueryBuilder {
 
     localStorage.setItem('db_' + this.table, JSON.stringify(newData))
     window.dispatchEvent(new CustomEvent('supabase_realtime_' + this.table))
-    return { data: newData.filter(r => idsToUpdate.has(r.id)), error: null }
+    return { data: newData.filter(r => idSet.has(r.id)), error: null }
   }
 
   async delete() {
-    const allData = JSON.parse(localStorage.getItem('db_' + this.table) || '[]')
-    const idsToDelete = new Set(this._queryData.map(r => r.id))
+    let idsToDelete = []
+    
+    const queryResult = await this
+    if (Array.isArray(queryResult.data)) {
+      idsToDelete = queryResult.data.map(r => r.id)
+    } else if (queryResult.data) {
+      idsToDelete = [queryResult.data.id]
+    }
 
-    const newData = allData.filter(row => !idsToDelete.has(row.id))
+    if (isElectron) {
+      return await window.electronAPI.query({
+        table: this.table,
+        action: 'delete',
+        payload: { ids: idsToDelete }
+      })
+    }
+
+    const allData = JSON.parse(localStorage.getItem('db_' + this.table) || '[]')
+    const idSet = new Set(idsToDelete)
+    
+    const newData = allData.filter(row => !idSet.has(row.id))
     localStorage.setItem('db_' + this.table, JSON.stringify(newData))
     window.dispatchEvent(new CustomEvent('supabase_realtime_' + this.table))
     return { data: null, error: null }
   }
 }
 
-// Seed Mock Data
-const initDB = () => {
-  if (!localStorage.getItem('db_rooms')) {
-    const defaultRooms = [
-      { id: 'r1', room_number: '101', room_type: 'Single', floor: 1, status: 'Available', price_per_night: 1200 },
-      { id: 'r2', room_number: '102', room_type: 'Double', floor: 1, status: 'Available', price_per_night: 1800 },
-      { id: 'r3', room_number: '103', room_type: 'Double', floor: 1, status: 'Available', price_per_night: 1800 },
-      { id: 'r4', room_number: '104', room_type: 'Suite', floor: 1, status: 'Available', price_per_night: 3500 },
-      { id: 'r5', room_number: '105', room_type: 'Single', floor: 1, status: 'Available', price_per_night: 1200 },
-      { id: 'r6', room_number: '106', room_type: 'Double', floor: 1, status: 'Available', price_per_night: 1800 },
-      { id: 'r7', room_number: '107', room_type: 'Suite', floor: 1, status: 'Available', price_per_night: 3500 },
-      { id: 'r8', room_number: '201', room_type: 'Single', floor: 2, status: 'Available', price_per_night: 1400 },
-      { id: 'r9', room_number: '202', room_type: 'Double', floor: 2, status: 'Available', price_per_night: 2200 },
-      { id: 'r10', room_number: '203', room_type: 'Double', floor: 2, status: 'Available', price_per_night: 2200 },
-      { id: 'r11', room_number: '204', room_type: 'Suite', floor: 2, status: 'Available', price_per_night: 4000 },
-      { id: 'r12', room_number: '205', room_type: 'Single', floor: 2, status: 'Available', price_per_night: 1400 },
-      { id: 'r13', room_number: '206', room_type: 'Double', floor: 2, status: 'Available', price_per_night: 2200 },
-      { id: 'r14', room_number: '207', room_type: 'Suite', floor: 2, status: 'Available', price_per_night: 4000 }
-    ]
-    localStorage.setItem('db_rooms', JSON.stringify(defaultRooms))
-  }
-
-  if (!localStorage.getItem('db_menu_items')) {
-    const defaultMenuItems = [
-      { id: 'm1', name: 'Masala Dosa', category: 'Breakfast', price: 90, is_available: true },
-      { id: 'm2', name: 'Veg Sandwich', category: 'Breakfast', price: 70, is_available: true },
-      { id: 'm3', name: 'Paneer Butter Masala', category: 'Lunch', price: 220, is_available: true },
-      { id: 'm4', name: 'Dal Makhani', category: 'Lunch', price: 180, is_available: true },
-      { id: 'm5', name: 'Butter Naan', category: 'Lunch', price: 40, is_available: true },
-      { id: 'm6', name: 'Jeera Rice', category: 'Lunch', price: 120, is_available: true },
-      { id: 'm7', name: 'Veg Biryani', category: 'Dinner', price: 200, is_available: true },
-      { id: 'm8', name: 'Chilli Paneer', category: 'Dinner', price: 210, is_available: true },
-      { id: 'm9', name: 'Cold Coffee', category: 'Drinks', price: 80, is_available: true },
-      { id: 'm10', name: 'Masala Chai', category: 'Drinks', price: 20, is_available: true },
-      { id: 'm11', name: 'French Fries', category: 'Snacks', price: 90, is_available: true },
-      { id: 'm12', name: 'Samosa (2 pcs)', category: 'Snacks', price: 40, is_available: true }
-    ]
-    localStorage.setItem('db_menu_items', JSON.stringify(defaultMenuItems))
-  }
+// Set up event routing for Electron updates to sync with React event subscriptions
+if (isElectron) {
+  window.electronAPI.onDbUpdate(({ table }) => {
+    window.dispatchEvent(new CustomEvent('supabase_realtime_' + table))
+  })
 }
-
-initDB()
 
 export const supabase = {
   auth: {
     signInWithPassword: async ({ email, password }) => {
-      // Allow any login locally so user isn't locked out offline
       const session = { user: { email } }
-      localStorage.setItem('session', JSON.stringify(session))
+      if (isElectron) {
+        await window.electronAPI.query({ table: 'session', action: 'set_session', payload: session })
+      } else {
+        localStorage.setItem('session', JSON.stringify(session))
+      }
       return { data: { session }, error: null }
     },
     getSession: async () => {
-      const session = JSON.parse(localStorage.getItem('session'))
-      return { data: { session } }
+      if (isElectron) {
+        const response = await window.electronAPI.query({ table: 'session', action: 'get_session' })
+        return { data: { session: response.data } }
+      } else {
+        const session = JSON.parse(localStorage.getItem('session'))
+        return { data: { session } }
+      }
     },
     signOut: async () => {
-      localStorage.removeItem('session')
+      if (isElectron) {
+        await window.electronAPI.query({ table: 'session', action: 'set_session', payload: null })
+      } else {
+        localStorage.removeItem('session')
+      }
       return { error: null }
     },
     onAuthStateChange: (callback) => {
@@ -220,8 +271,7 @@ export const supabase = {
     }
   },
   from: (table) => {
-    const data = JSON.parse(localStorage.getItem('db_' + table) || '[]')
-    return new QueryBuilder(table, data)
+    return new QueryBuilder(table)
   },
   channel: (name) => {
     let callbacks = []

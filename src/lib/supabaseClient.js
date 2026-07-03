@@ -232,6 +232,18 @@ if (isElectron) {
   })
 }
 
+let authCallbacks = []
+
+const triggerAuthChange = (event, session) => {
+  authCallbacks.forEach(cb => {
+    try {
+      cb(event, session)
+    } catch (e) {
+      console.error('Error firing auth callback:', e)
+    }
+  })
+}
+
 export const supabase = {
   auth: {
     signInWithPassword: async ({ email, password }) => {
@@ -242,6 +254,7 @@ export const supabase = {
         } else {
           localStorage.setItem('session', JSON.stringify(session))
         }
+        triggerAuthChange('SIGNED_IN', session)
         return { data: { session }, error: null }
       }
       return { data: null, error: { message: 'Invalid email or password' } }
@@ -261,13 +274,23 @@ export const supabase = {
       } else {
         localStorage.removeItem('session')
       }
+      triggerAuthChange('SIGNED_OUT', null)
       return { error: null }
     },
     onAuthStateChange: (callback) => {
+      authCallbacks.push(callback)
+      
+      // Fire initial state immediately
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        callback('INITIAL_SESSION', session)
+      })
+
       return {
         data: {
           subscription: {
-            unsubscribe: () => {}
+            unsubscribe: () => {
+              authCallbacks = authCallbacks.filter(cb => cb !== callback)
+            }
           }
         }
       }

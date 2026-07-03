@@ -12,20 +12,20 @@ if (!fs.existsSync(dataDir)) {
 }
 
 const defaultRooms = [
-  { id: 'r1', room_number: '101', room_type: 'Single', floor: 1, status: 'Available', price_per_night: 1200 },
-  { id: 'r2', room_number: '102', room_type: 'Double', floor: 1, status: 'Available', price_per_night: 1800 },
-  { id: 'r3', room_number: '103', room_type: 'Double', floor: 1, status: 'Available', price_per_night: 1800 },
-  { id: 'r4', room_number: '104', room_type: 'Suite', floor: 1, status: 'Available', price_per_night: 3500 },
-  { id: 'r5', room_number: '105', room_type: 'Single', floor: 1, status: 'Available', price_per_night: 1200 },
-  { id: 'r6', room_number: '106', room_type: 'Double', floor: 1, status: 'Available', price_per_night: 1800 },
-  { id: 'r7', room_number: '107', room_type: 'Suite', floor: 1, status: 'Available', price_per_night: 3500 },
-  { id: 'r8', room_number: '201', room_type: 'Single', floor: 2, status: 'Available', price_per_night: 1400 },
-  { id: 'r9', room_number: '202', room_type: 'Double', floor: 2, status: 'Available', price_per_night: 2200 },
-  { id: 'r10', room_number: '203', room_type: 'Double', floor: 2, status: 'Available', price_per_night: 2200 },
-  { id: 'r11', room_number: '204', room_type: 'Suite', floor: 2, status: 'Available', price_per_night: 4000 },
-  { id: 'r12', room_number: '205', room_type: 'Single', floor: 2, status: 'Available', price_per_night: 1400 },
-  { id: 'r13', room_number: '206', room_type: 'Double', floor: 2, status: 'Available', price_per_night: 2200 },
-  { id: 'r14', room_number: '207', room_type: 'Suite', floor: 2, status: 'Available', price_per_night: 4000 }
+  { id: 'r1', room_number: '101', room_type: 'Budget', floor: 1, status: 'Available', price_per_night: 1200 },
+  { id: 'r2', room_number: '102', room_type: 'Standard', floor: 1, status: 'Available', price_per_night: 1500 },
+  { id: 'r3', room_number: '103', room_type: 'Standard', floor: 1, status: 'Available', price_per_night: 1500 },
+  { id: 'r4', room_number: '104', room_type: 'Premium', floor: 1, status: 'Available', price_per_night: 1800 },
+  { id: 'r5', room_number: '105', room_type: 'Budget', floor: 1, status: 'Available', price_per_night: 1200 },
+  { id: 'r6', room_number: '106', room_type: 'Standard', floor: 1, status: 'Available', price_per_night: 1500 },
+  { id: 'r7', room_number: '107', room_type: 'Premium', floor: 1, status: 'Available', price_per_night: 1800 },
+  { id: 'r8', room_number: '201', room_type: 'Budget', floor: 2, status: 'Available', price_per_night: 1200 },
+  { id: 'r9', room_number: '202', room_type: 'Standard', floor: 2, status: 'Available', price_per_night: 1500 },
+  { id: 'r10', room_number: '203', room_type: 'Standard', floor: 2, status: 'Available', price_per_night: 1500 },
+  { id: 'r11', room_number: '204', room_type: 'Premium', floor: 2, status: 'Available', price_per_night: 1800 },
+  { id: 'r12', room_number: '205', room_type: 'Budget', floor: 2, status: 'Available', price_per_night: 1200 },
+  { id: 'r13', room_number: '206', room_type: 'Standard', floor: 2, status: 'Available', price_per_night: 1500 },
+  { id: 'r14', room_number: '207', room_type: 'Premium', floor: 2, status: 'Available', price_per_night: 1800 }
 ]
 
 const defaultMenuItems = [
@@ -59,7 +59,39 @@ const readDb = () => {
       fs.writeFileSync(dbPath, JSON.stringify(initDb, null, 2))
       return initDb
     }
-    return JSON.parse(fs.readFileSync(dbPath, 'utf8'))
+    
+    const db = JSON.parse(fs.readFileSync(dbPath, 'utf8'))
+    
+    // Automatically migrate old room types if they are present in the JSON file
+    let migrated = false
+    if (db.rooms) {
+      db.rooms = db.rooms.map(room => {
+        let newType = room.room_type
+        let newPrice = room.price_per_night
+        
+        if (room.room_type === 'Single') {
+          newType = 'Budget'
+          newPrice = 1200
+          migrated = true
+        } else if (room.room_type === 'Double') {
+          newType = 'Standard'
+          newPrice = 1500
+          migrated = true
+        } else if (room.room_type === 'Suite') {
+          newType = 'Premium'
+          newPrice = 1800
+          migrated = true
+        }
+        
+        return { ...room, room_type: newType, price_per_night: newPrice }
+      })
+    }
+    
+    if (migrated) {
+      fs.writeFileSync(dbPath, JSON.stringify(db, null, 2))
+    }
+    
+    return db
   } catch (error) {
     console.error('Failed to read local JSON database:', error)
     return {}

@@ -55,10 +55,7 @@ export default function Checkout() {
     const checkIn = new Date(booking.check_in)
     const now = new Date()
     const daysStayed = Math.max(1, Math.ceil((now - checkIn) / (1000 * 60 * 60 * 24)))
-    const ratePerDay = booking.rooms?.room_type === 'Premium' ? 1800 : 
-                       booking.rooms?.room_type === 'Standard' ? 1500 : 
-                       booking.rooms?.room_type === 'Budget' ? 1200 : 
-                       (booking.rooms?.room_type === 'Cottage' || booking.rooms?.room_type === 'Cottages') ? 2000 : 1500
+    const ratePerDay = booking.rooms?.price_per_night || 1500
     setRoomCharges(daysStayed * ratePerDay)
     setExtraCharges(0)
     setDiscount(0)

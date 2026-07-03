@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   IndianRupee, TrendingUp, Calendar as CalendarIcon, Download, 
-  BarChart3, Receipt, Eye, Coffee, Bed, ArrowRight, X, Search 
+  BarChart3, Receipt, Eye, Coffee, Bed, ArrowRight, X 
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, subDays, subMonths, startOfDay, endOfDay } from 'date-fns'
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState('revenue') // 'revenue', 'orders', 'allotments'
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [timePeriod, setTimePeriod] = useState('today') // 'today', 'yesterday', '7days', '30days', '6months', 'custom'
+  const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0])
+  const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0])
   const [loading, setLoading] = useState(false)
   
   // Data States
@@ -18,17 +20,55 @@ export default function Reports() {
   const [allotments, setAllotments] = useState([])
   
   // Drill-down states
-  const [selectedOrder, setSelectedOrder] = useState(null) // Detailed order modal
+  const [selectedOrder, setSelectedOrder] = useState(null)
   const [orderItems, setOrderItems] = useState([])
+
+  // Calculate start/end dates based on selection
+  const rangeDates = useMemo(() => {
+    const now = new Date()
+    let start, end
+
+    switch (timePeriod) {
+      case 'today':
+        start = startOfDay(now)
+        end = endOfDay(now)
+        break
+      case 'yesterday':
+        const yesterday = subDays(now, 1)
+        start = startOfDay(yesterday)
+        end = endOfDay(yesterday)
+        break
+      case '7days':
+        start = startOfDay(subDays(now, 7))
+        end = endOfDay(now)
+        break
+      case '30days':
+        start = startOfDay(subDays(now, 30))
+        end = endOfDay(now)
+        break
+      case '6months':
+        start = startOfDay(subMonths(now, 6))
+        end = endOfDay(now)
+        break
+      case 'custom':
+        start = startOfDay(new Date(customStartDate))
+        end = endOfDay(new Date(customEndDate))
+        break
+      default:
+        start = startOfDay(now)
+        end = endOfDay(now)
+    }
+    return { start, end }
+  }, [timePeriod, customStartDate, customEndDate])
 
   useEffect(() => {
     fetchData()
-  }, [activeTab, selectedDate])
+  }, [activeTab, rangeDates])
 
   const fetchData = async () => {
     setLoading(true)
-    const startDate = `${selectedDate}T00:00:00Z`
-    const endDate = `${selectedDate}T23:59:59Z`
+    const startDate = rangeDates.start.toISOString()
+    const endDate = rangeDates.end.toISOString()
 
     try {
       if (activeTab === 'revenue') {
@@ -84,7 +124,7 @@ export default function Reports() {
     }
   }
 
-  // Calculate total revenue on the selected date
+  // Calculate total revenue
   const totalRevenue = bills.reduce((sum, b) => sum + (b.total || 0), 0)
   const totalBillsCount = bills.length
   const avgBillValue = totalBillsCount > 0 ? Math.round(totalRevenue / totalBillsCount) : 0
@@ -92,13 +132,15 @@ export default function Reports() {
   const exportCSV = () => {
     let headers = []
     let rows = []
-    let filename = `report_${selectedDate}.csv`
+    const startStr = format(rangeDates.start, 'yyyy-MM-dd')
+    const endStr = format(rangeDates.end, 'yyyy-MM-dd')
+    let filename = `report_${startStr}_to_${endStr}.csv`
 
     if (activeTab === 'revenue') {
-      headers = ['Bill ID', 'Time', 'Type', 'Subtotal', 'Tax', 'Discount', 'Total', 'Payment Mode']
+      headers = ['Bill ID', 'Date & Time', 'Type', 'Subtotal', 'Tax', 'Discount', 'Total', 'Payment Mode']
       rows = bills.map(b => [
         b.id.slice(0, 8),
-        format(new Date(b.created_at), 'hh:mm a'),
+        format(new Date(b.created_at), 'dd MMM yyyy, hh:mm a'),
         b.orders ? 'Restaurant' : 'Hotel Room',
         b.subtotal,
         b.tax_percent,
@@ -106,19 +148,19 @@ export default function Reports() {
         b.total,
         b.payment_mode
       ])
-      filename = `revenue_report_${selectedDate}.csv`
+      filename = `revenue_${startStr}_to_${endStr}.csv`
     } 
     else if (activeTab === 'orders') {
-      headers = ['Order ID', 'Time', 'Type', 'Table / Takeaway', 'Status', 'Total Price']
+      headers = ['Order ID', 'Date & Time', 'Type', 'Table / Takeaway', 'Status', 'Total Price']
       rows = orders.map(o => [
         o.id.slice(0, 8),
-        format(new Date(o.created_at), 'hh:mm a'),
+        format(new Date(o.created_at), 'dd MMM yyyy, hh:mm a'),
         o.is_takeaway ? 'Takeaway' : 'Dine-In',
         o.is_takeaway ? 'N/A' : `Table ${o.table_number}`,
         o.status,
         o.total_price
       ])
-      filename = `orders_history_${selectedDate}.csv`
+      filename = `orders_${startStr}_to_${endStr}.csv`
     } 
     else if (activeTab === 'allotments') {
       headers = ['Booking ID', 'Guest Name', 'Phone', 'Room Number', 'Room Type', 'Check-In', 'Expected Check-Out', 'Status']
@@ -128,11 +170,11 @@ export default function Reports() {
         a.guests?.phone || 'N/A',
         a.rooms?.room_number || 'N/A',
         a.rooms?.room_type || 'N/A',
-        format(new Date(a.check_in), 'hh:mm a'),
+        format(new Date(a.check_in), 'dd MMM yyyy, hh:mm a'),
         format(new Date(a.check_out), 'dd MMM yyyy'),
         a.status
       ])
-      filename = `room_allotments_${selectedDate}.csv`
+      filename = `allotments_${startStr}_to_${endStr}.csv`
     }
 
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -151,25 +193,51 @@ export default function Reports() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         <div>
           <h1 className="page-header flex items-center">
             <BarChart3 size={28} className="mr-3 text-brand-500" />
             Historical Reports & Data logs
           </h1>
-          <p className="page-subheader">Retrieve old data, look up guest room allotments, and view past orders</p>
+          <p className="page-subheader">Retrieve old data logs, inspect room check-ins, and export records for any period</p>
         </div>
 
-        {/* Date Filter */}
-        <div className="flex items-center space-x-3 bg-white border border-surface-200 rounded-2xl px-4 py-2.5 shadow-sm">
-          <CalendarIcon size={18} className="text-brand-500" />
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Select Date:</span>
-          <input 
-            type="date" 
-            value={selectedDate}
-            onChange={e => setSelectedDate(e.target.value)}
-            className="text-sm font-bold text-gray-700 bg-transparent focus:outline-none"
-          />
+        {/* Time Period Filter controls */}
+        <div className="flex flex-wrap items-center gap-3 bg-white border border-surface-200 rounded-3xl p-3 shadow-sm">
+          <div className="flex items-center space-x-2">
+            <CalendarIcon size={16} className="text-brand-500" />
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Period:</span>
+            <select
+              value={timePeriod}
+              onChange={e => setTimePeriod(e.target.value)}
+              className="text-sm font-bold text-gray-700 bg-transparent border-b border-gray-200 focus:outline-none py-0.5 cursor-pointer"
+            >
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="6months">Last 6 Months</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+
+          {timePeriod === 'custom' && (
+            <div className="flex items-center space-x-2 border-l border-surface-200 pl-3">
+              <input 
+                type="date" 
+                value={customStartDate}
+                onChange={e => setCustomStartDate(e.target.value)}
+                className="text-xs font-bold text-gray-600 bg-surface-50 border border-surface-200 rounded-lg p-1"
+              />
+              <span className="text-xs text-gray-400 font-bold">to</span>
+              <input 
+                type="date" 
+                value={customEndDate}
+                onChange={e => setCustomEndDate(e.target.value)}
+                className="text-xs font-bold text-gray-600 bg-surface-50 border border-surface-200 rounded-lg p-1"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -217,10 +285,10 @@ export default function Reports() {
                style={{ background: 'linear-gradient(135deg, #CC7219 0%, #E88526 40%, #FF9933 100%)' }}>
             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
             <div className="relative z-10">
-              <h3 className="text-brand-100 font-semibold text-sm">Date Revenue ({format(new Date(selectedDate), 'dd MMM')})</h3>
+              <h3 className="text-brand-100 font-semibold text-xs uppercase tracking-wider">Total Range Revenue</h3>
               <p className="text-4xl font-display font-extrabold tracking-tight mt-2">₹{totalRevenue.toLocaleString()}</p>
               <p className="text-brand-200 text-xs mt-2 flex items-center font-medium">
-                <TrendingUp size={12} className="mr-1" /> Total local revenue collected
+                <TrendingUp size={12} className="mr-1" /> Cumulative collection
               </p>
             </div>
           </div>
@@ -243,12 +311,17 @@ export default function Reports() {
         animate={{ opacity: 1, y: 0 }}
         className="section-card"
       >
-        <div className="section-card-header flex justify-between items-center">
-          <h2 className="text-lg font-display font-bold text-gray-800 uppercase tracking-wide">
-            {activeTab === 'revenue' && 'Revenue Ledger'}
-            {activeTab === 'orders' && 'Restaurant Transaction Log'}
-            {activeTab === 'allotments' && 'Room Allotment History log'}
-          </h2>
+        <div className="section-card-header flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+          <div>
+            <h2 className="text-lg font-display font-bold text-gray-800 uppercase tracking-wide">
+              {activeTab === 'revenue' && 'Revenue Ledger'}
+              {activeTab === 'orders' && 'Restaurant Transaction Log'}
+              {activeTab === 'allotments' && 'Room Allotment History log'}
+            </h2>
+            <p className="text-xs text-gray-400 font-medium mt-1">
+              Showing logs from {format(rangeDates.start, 'dd MMM yyyy')} to {format(rangeDates.end, 'dd MMM yyyy')}
+            </p>
+          </div>
           <button 
             onClick={exportCSV} 
             disabled={loading || (activeTab === 'revenue' ? bills : activeTab === 'orders' ? orders : allotments).length === 0}
@@ -270,7 +343,7 @@ export default function Reports() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Time</th>
+                    <th>Date & Time</th>
                     <th>Bill ID</th>
                     <th>Allotted To</th>
                     <th>Subtotal</th>
@@ -282,7 +355,7 @@ export default function Reports() {
                 <tbody>
                   {bills.map(b => (
                     <tr key={b.id}>
-                      <td className="text-gray-500 text-xs font-semibold">{format(new Date(b.created_at), 'hh:mm a')}</td>
+                      <td className="text-gray-500 text-xs font-semibold">{format(new Date(b.created_at), 'dd MMM, hh:mm a')}</td>
                       <td>
                         <span className="font-bold text-gray-800">#{b.id.slice(0, 8)}</span>
                       </td>
@@ -304,7 +377,7 @@ export default function Reports() {
                       </td>
                     </tr>
                   ))}
-                  {bills.length === 0 && <EmptyState text="No revenue transactions recorded on this date." />}
+                  {bills.length === 0 && <EmptyState text="No revenue transactions recorded in this period." />}
                 </tbody>
               </table>
             )}
@@ -314,7 +387,7 @@ export default function Reports() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Time</th>
+                    <th>Date & Time</th>
                     <th>Order ID</th>
                     <th>Service Type</th>
                     <th>Table / Tag</th>
@@ -326,7 +399,7 @@ export default function Reports() {
                 <tbody>
                   {orders.map(o => (
                     <tr key={o.id}>
-                      <td className="text-gray-500 text-xs font-semibold">{format(new Date(o.created_at), 'hh:mm a')}</td>
+                      <td className="text-gray-500 text-xs font-semibold">{format(new Date(o.created_at), 'dd MMM, hh:mm a')}</td>
                       <td>
                         <span className="font-bold text-gray-800">#{o.id.slice(0,8)}</span>
                       </td>
@@ -355,7 +428,7 @@ export default function Reports() {
                       </td>
                     </tr>
                   ))}
-                  {orders.length === 0 && <EmptyState text="No restaurant orders placed on this date." />}
+                  {orders.length === 0 && <EmptyState text="No restaurant orders placed in this period." />}
                 </tbody>
               </table>
             )}
@@ -377,7 +450,7 @@ export default function Reports() {
                 <tbody>
                   {allotments.map(a => (
                     <tr key={a.id}>
-                      <td className="text-gray-500 text-xs font-semibold">{format(new Date(a.check_in), 'hh:mm a')}</td>
+                      <td className="text-gray-500 text-xs font-semibold">{format(new Date(a.check_in), 'dd MMM, hh:mm a')}</td>
                       <td>
                         <span className="font-bold text-gray-800">{a.booking_id}</span>
                       </td>
@@ -411,7 +484,7 @@ export default function Reports() {
                       </td>
                     </tr>
                   ))}
-                  {allotments.length === 0 && <EmptyState text="No hotel rooms allotted on this date." />}
+                  {allotments.length === 0 && <EmptyState text="No hotel rooms allotted in this period." />}
                 </tbody>
               </table>
             )}
@@ -489,7 +562,7 @@ function EmptyState({ text }) {
       <td colSpan="7" className="p-16 text-center text-gray-400">
         <Receipt size={36} className="mx-auto mb-3 text-brand-300 opacity-60" />
         <p className="font-bold text-sm text-gray-500">{text}</p>
-        <p className="text-xs text-gray-400 mt-1">Select a different date from the top-right filter to lookup old records.</p>
+        <p className="text-xs text-gray-400 mt-1">Select a different range from the top filter to lookup old records.</p>
       </td>
     </tr>
   )

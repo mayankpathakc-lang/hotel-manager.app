@@ -2,9 +2,9 @@ const fs = require('fs')
 const path = require('path')
 const { app } = require('electron')
 
-// Set up data path
-const dataDir = app.getPath('userData')
-const dbPath = path.join(dataDir, 'hotel-data.json')
+// Set up database folder in the user's Documents directory
+const dataDir = path.join(app.getPath('documents'), 'Joshi Guest House')
+const dbPath = path.join(dataDir, 'database.json')
 
 // Ensure directory and db file exist
 if (!fs.existsSync(dataDir)) {

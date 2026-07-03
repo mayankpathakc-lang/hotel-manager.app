@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabaseClient'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -48,7 +48,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
         
@@ -66,7 +66,7 @@ function App() {
           <Route path="reports" element={<Reports />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 

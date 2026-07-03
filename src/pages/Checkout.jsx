@@ -55,7 +55,10 @@ export default function Checkout() {
     const checkIn = new Date(booking.check_in)
     const now = new Date()
     const daysStayed = Math.max(1, Math.ceil((now - checkIn) / (1000 * 60 * 60 * 24)))
-    const ratePerDay = booking.rooms?.price_per_night || 1500
+    const ratePerDay = booking.rooms?.room_type === 'Premium' ? 1800 : 
+                       booking.rooms?.room_type === 'Standard' ? 1500 : 
+                       booking.rooms?.room_type === 'Budget' ? 1200 : 
+                       (booking.rooms?.room_type === 'Cottage' || booking.rooms?.room_type === 'Cottages') ? 2000 : 1500
     setRoomCharges(daysStayed * ratePerDay)
     setExtraCharges(0)
     setDiscount(0)
@@ -93,8 +96,8 @@ export default function Checkout() {
   }
 
   const subtotal = roomCharges + restaurantCharges + extraCharges
-  const taxAmount = 0 // Remove tax from room checkout
-  const grandTotal = subtotal - discount
+  const taxAmount = Math.round(subtotal * 0.12)
+  const grandTotal = subtotal + taxAmount - discount
 
   const handleCheckout = async () => {
     if (!selectedBooking) return
@@ -107,7 +110,7 @@ export default function Checkout() {
         .from('bills')
         .insert([{
           subtotal,
-          tax_percent: 0,
+          tax_percent: 12,
           discount,
           total: grandTotal,
           payment_mode: paymentMode,
@@ -426,8 +429,12 @@ export default function Checkout() {
                     <span className="text-gray-500">Subtotal</span>
                     <span className="font-semibold">₹{subtotal.toLocaleString()}</span>
                   </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Tax (12%)</span>
+                    <span className="font-semibold">₹{taxAmount.toLocaleString()}</span>
+                  </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Discount (Optional)</span>
+                    <span className="text-gray-500">Discount</span>
                     <input type="number" value={discount} onChange={e => setDiscount(Number(e.target.value))} className="w-28 input-field text-right text-sm py-2" />
                   </div>
                   <div className="flex justify-between text-xl font-display font-extrabold pt-3 border-t border-surface-200">
@@ -470,66 +477,6 @@ export default function Checkout() {
           )}
         </motion.div>
       </div>
-
-      {/* Print-only Invoice Receipt Container */}
-      {selectedBooking && (
-        <div className="print-area-only print-area text-black p-4 space-y-4" style={{ width: '100%', maxWidth: '80mm' }}>
-          <div className="text-center pb-3 border-b border-dashed border-gray-400">
-            <h2 className="text-xl font-display font-extrabold tracking-wide">JOSHI GUEST HOUSE</h2>
-            <p className="text-xs uppercase tracking-widest font-semibold text-gray-500 mt-1">Invoice Receipt</p>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 py-1">
-            <div><strong>Booking ID:</strong> {selectedBooking.booking_id}</div>
-            <div className="text-right"><strong>Date:</strong> {new Date().toLocaleDateString()}</div>
-            <div><strong>Room:</strong> {selectedBooking.rooms?.room_number} ({selectedBooking.rooms?.room_type})</div>
-            <div className="text-right"><strong>Payment Mode:</strong> {paymentMode}</div>
-            <div className="col-span-2"><strong>Guest:</strong> {selectedBooking.guests?.name} ({selectedBooking.guests?.phone})</div>
-          </div>
-
-          <table className="w-full text-xs border-t border-b border-gray-200 my-2">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="py-2">Description</th>
-                <th className="py-2 text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 font-medium">
-              <tr className="text-gray-800">
-                <td className="py-2">Room Charges ({getDaysStayed(selectedBooking.check_in)} nights)</td>
-                <td className="py-2 text-right">₹{roomCharges}</td>
-              </tr>
-              {restaurantCharges > 0 && (
-                <tr className="text-gray-800">
-                  <td className="py-2">Restaurant Charges</td>
-                  <td className="py-2 text-right">₹{restaurantCharges}</td>
-                </tr>
-              )}
-              {extraCharges > 0 && (
-                <tr className="text-gray-800">
-                  <td className="py-2">Extra Services</td>
-                  <td className="py-2 text-right">₹{extraCharges}</td>
-                </tr>
-              )}
-              {discount > 0 && (
-                <tr className="text-rose-600 font-bold">
-                  <td className="py-2">Discount</td>
-                  <td className="py-2 text-right">-₹{discount}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-
-          <div className="flex justify-between items-center text-sm font-bold pt-1 border-t border-dashed border-gray-300">
-            <span>Grand Total:</span>
-            <span className="text-base">₹{grandTotal}</span>
-          </div>
-
-          <div className="text-center pt-4 text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
-            Thank you for staying with us!
-          </div>
-        </div>
-      )}
     </div>
   )
 }

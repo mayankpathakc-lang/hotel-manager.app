@@ -12,20 +12,20 @@ if (!fs.existsSync(dataDir)) {
 }
 
 const defaultRooms = [
-  { id: 'r1', room_number: '101', room_type: 'Budget', floor: 1, status: 'Available', price_per_night: 1200 },
-  { id: 'r2', room_number: '102', room_type: 'Standard', floor: 1, status: 'Available', price_per_night: 1500 },
-  { id: 'r3', room_number: '103', room_type: 'Standard', floor: 1, status: 'Available', price_per_night: 1500 },
-  { id: 'r4', room_number: '104', room_type: 'Premium', floor: 1, status: 'Available', price_per_night: 1800 },
-  { id: 'r5', room_number: '105', room_type: 'Budget', floor: 1, status: 'Available', price_per_night: 1200 },
-  { id: 'r6', room_number: '106', room_type: 'Standard', floor: 1, status: 'Available', price_per_night: 1500 },
-  { id: 'r7', room_number: '107', room_type: 'Premium', floor: 1, status: 'Available', price_per_night: 1800 },
-  { id: 'r8', room_number: '201', room_type: 'Budget', floor: 2, status: 'Available', price_per_night: 1200 },
-  { id: 'r9', room_number: '202', room_type: 'Standard', floor: 2, status: 'Available', price_per_night: 1500 },
-  { id: 'r10', room_number: '203', room_type: 'Standard', floor: 2, status: 'Available', price_per_night: 1500 },
-  { id: 'r11', room_number: '204', room_type: 'Premium', floor: 2, status: 'Available', price_per_night: 1800 },
-  { id: 'r12', room_number: '205', room_type: 'Budget', floor: 2, status: 'Available', price_per_night: 1200 },
-  { id: 'r13', room_number: '206', room_type: 'Standard', floor: 2, status: 'Available', price_per_night: 1500 },
-  { id: 'r14', room_number: '207', room_type: 'Premium', floor: 2, status: 'Available', price_per_night: 1800 }
+  { id: 'r1', room_number: '1', room_type: 'Premium', status: 'Available', price_per_night: 1800 },
+  { id: 'r2', room_number: '2', room_type: 'Premium', status: 'Available', price_per_night: 1800 },
+  { id: 'r3', room_number: '3', room_type: 'Premium', status: 'Available', price_per_night: 1800 },
+  { id: 'r4', room_number: '4', room_type: 'Standard', status: 'Available', price_per_night: 1500 },
+  { id: 'r5', room_number: '5', room_type: 'Standard', status: 'Available', price_per_night: 1500 },
+  { id: 'r6', room_number: '6', room_type: 'Standard', status: 'Available', price_per_night: 1500 },
+  { id: 'r7', room_number: '7', room_type: 'Budget', status: 'Available', price_per_night: 1200 },
+  { id: 'r8', room_number: '8', room_type: 'Budget', status: 'Available', price_per_night: 1200 },
+  { id: 'r9', room_number: '9', room_type: 'Budget', status: 'Available', price_per_night: 1200 },
+  { id: 'r10', room_number: '10', room_type: 'Budget', status: 'Available', price_per_night: 1200 },
+  { id: 'r11', room_number: '11', room_type: 'Budget', status: 'Available', price_per_night: 1200 },
+  { id: 'r12', room_number: '12', room_type: 'Cottages', status: 'Available', price_per_night: 2000 },
+  { id: 'r14', room_number: '14', room_type: 'Cottages', status: 'Available', price_per_night: 2000 },
+  { id: 'r15', room_number: '15', room_type: 'Cottages', status: 'Available', price_per_night: 2000 }
 ]
 
 const defaultMenuItems = [
@@ -62,29 +62,17 @@ const readDb = () => {
     
     const db = JSON.parse(fs.readFileSync(dbPath, 'utf8'))
     
-    // Automatically migrate old room types if they are present in the JSON file
+    // Automatically migrate/restructure room inventory if old layout exists
     let migrated = false
-    if (db.rooms) {
-      db.rooms = db.rooms.map(room => {
-        let newType = room.room_type
-        let newPrice = room.price_per_night
-        
-        if (room.room_type === 'Single') {
-          newType = 'Budget'
-          newPrice = 1200
-          migrated = true
-        } else if (room.room_type === 'Double') {
-          newType = 'Standard'
-          newPrice = 1500
-          migrated = true
-        } else if (room.room_type === 'Suite') {
-          newType = 'Premium'
-          newPrice = 1800
-          migrated = true
-        }
-        
-        return { ...room, room_type: newType, price_per_night: newPrice }
-      })
+    const hasOldLayout = db.rooms && (
+      db.rooms.length !== 14 ||
+      db.rooms.some(r => r.room_number === '101') ||
+      !db.rooms.some(r => r.room_number === '15')
+    )
+    
+    if (db.rooms && hasOldLayout) {
+      db.rooms = defaultRooms
+      migrated = true
     }
     
     if (migrated) {

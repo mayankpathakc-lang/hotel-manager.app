@@ -93,7 +93,7 @@ export default function Rooms() {
         {rooms.map((room, idx) => {
           const styles = getStatusStyles(room.status)
           const booking = bookingsMap[room.id]
-          const rate = room.price_per_night || ROOM_RATES[room.room_type] || 1500
+          const rate = ROOM_RATES[room.room_type] || 1500
 
           return (
             <motion.div
@@ -192,7 +192,7 @@ export default function Rooms() {
                   </div>
                   <div className="bg-surface-50 rounded-2xl p-4 text-center">
                     <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Rate</p>
-                    <p className="font-bold text-sm text-brand-600">₹{(selectedRoom.price_per_night || ROOM_RATES[selectedRoom.room_type] || 1500).toLocaleString()}</p>
+                    <p className="font-bold text-sm text-brand-600">₹{(ROOM_RATES[selectedRoom.room_type] || 1500).toLocaleString()}</p>
                   </div>
                 </div>
 

@@ -89,7 +89,17 @@ export default function Reports() {
           .lte('created_at', endDate)
           .order('created_at', { ascending: false })
         
-        setOrders(ordersData || [])
+        // Fetch all order items and their menu name associations in one pass
+        const { data: allItems } = await supabase
+          .from('order_items')
+          .select('*')
+        
+        const ordersWithItems = (ordersData || []).map(o => ({
+          ...o,
+          items: (allItems || []).filter(item => item.order_id === o.id)
+        }))
+        
+        setOrders(ordersWithItems)
       } 
       else if (activeTab === 'allotments') {
         const { data: allotmentsData } = await supabase
@@ -137,7 +147,7 @@ export default function Reports() {
     let filename = `report_${startStr}_to_${endStr}.csv`
 
     if (activeTab === 'revenue') {
-      headers = ['Bill ID', 'Date & Time', 'Type', 'Subtotal', 'Tax', 'Discount', 'Total', 'Payment Mode']
+      headers = ['Bill ID', 'Date & Time', 'Type', 'Subtotal', 'Tax', 'Discount', 'Total Received', 'Payment Mode']
       rows = bills.map(b => [
         b.id.slice(0, 8),
         format(new Date(b.created_at), 'dd MMM yyyy, hh:mm a'),
@@ -151,30 +161,52 @@ export default function Reports() {
       filename = `revenue_${startStr}_to_${endStr}.csv`
     } 
     else if (activeTab === 'orders') {
-      headers = ['Order ID', 'Date & Time', 'Type', 'Table / Takeaway', 'Status', 'Total Price']
-      rows = orders.map(o => [
-        o.id.slice(0, 8),
-        format(new Date(o.created_at), 'dd MMM yyyy, hh:mm a'),
-        o.is_takeaway ? 'Takeaway' : 'Dine-In',
-        o.is_takeaway ? 'N/A' : `Table ${o.table_number}`,
-        o.status,
-        o.total_price
-      ])
+      headers = ['Order ID', 'Date & Time', 'Service Type', 'Table Number / Tag', 'Items Ordered & Quantities', 'Status', 'Total Price']
+      rows = orders.map(o => {
+        const itemString = o.items 
+          ? o.items.map(i => `${i.menu_items?.name || 'Item'} (x${i.quantity})`).join('; ') 
+          : 'N/A'
+        
+        return [
+          o.id.slice(0, 8),
+          format(new Date(o.created_at), 'dd MMM yyyy, hh:mm a'),
+          o.is_takeaway ? 'Takeaway' : 'Dine-In',
+          o.is_takeaway ? 'N/A' : `Table ${o.table_number}`,
+          `"${itemString.replace(/"/g, '""')}"`, // Wrap in quotes and escape internal quotes for CSV safety
+          o.status,
+          o.total_price
+        ]
+      })
       filename = `orders_${startStr}_to_${endStr}.csv`
     } 
     else if (activeTab === 'allotments') {
-      headers = ['Booking ID', 'Guest Name', 'Phone', 'Room Number', 'Room Type', 'Check-In', 'Expected Check-Out', 'Status']
-      rows = allotments.map(a => [
-        a.booking_id,
-        a.guests?.name || 'N/A',
-        a.guests?.phone || 'N/A',
-        a.rooms?.room_number || 'N/A',
-        a.rooms?.room_type || 'N/A',
-        format(new Date(a.check_in), 'dd MMM yyyy, hh:mm a'),
-        format(new Date(a.check_out), 'dd MMM yyyy'),
-        a.status
-      ])
-      filename = `allotments_${startStr}_to_${endStr}.csv`
+      headers = [
+        'Booking ID', 'Guest Name', 'Phone', 'ID Proof Type', 'ID Proof Number', 
+        'Address', 'Nationality', 'Room Number', 'Room Type', 'Check-In Date/Time', 
+        'Expected Check-Out', 'Number of Guests', 'Purpose of Visit', 'Status'
+      ]
+      rows = allotments.map(a => {
+        const escapedAddress = (a.guests?.address || 'N/A').replace(/"/g, '""')
+        const escapedName = (a.guests?.name || 'N/A').replace(/"/g, '""')
+
+        return [
+          a.booking_id,
+          `"${escapedName}"`,
+          a.guests?.phone || 'N/A',
+          a.guests?.id_proof_type || 'N/A',
+          a.guests?.id_proof_number || 'N/A',
+          `"${escapedAddress}"`,
+          a.guests?.nationality || 'N/A',
+          a.rooms?.room_number || 'N/A',
+          a.rooms?.room_type || 'N/A',
+          format(new Date(a.check_in), 'dd MMM yyyy, hh:mm a'),
+          format(new Date(a.check_out), 'dd MMM yyyy'),
+          a.num_guests || 1,
+          a.purpose || 'N/A',
+          a.status
+        ]
+      })
+      filename = `room_allotments_${startStr}_to_${endStr}.csv`
     }
 
     const csvContent = "data:text/csv;charset=utf-8," 

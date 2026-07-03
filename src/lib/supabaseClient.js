@@ -286,7 +286,7 @@ const triggerAuthChange = (event, session) => {
 export const supabase = {
   auth: {
     signInWithPassword: async ({ email, password }) => {
-      if (email === 'mayankpathakc@gmail.com' && password === '1234567890') {
+      if (email === 'joshiguesthouse@gmail.com' && password === 'amit_joshi_2026') {
         const session = { user: { email } }
         if (isElectron) {
           await window.electronAPI.query({ table: 'session', action: 'set_session', payload: session })

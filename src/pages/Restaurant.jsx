@@ -396,7 +396,7 @@ export default function Restaurant() {
 
       {/* Print-only KOT Container */}
       {placedOrderDetails && (
-        <div className="hidden print:block print-area text-black p-4 space-y-4" style={{ width: '100%', maxWidth: '80mm' }}>
+        <div className="print-area-only print-area text-black p-4 space-y-4" style={{ width: '100%', maxWidth: '80mm' }}>
           <div className="text-center pb-3 border-b border-dashed border-gray-400">
             <h2 className="text-xl font-display font-extrabold tracking-wide">JOSHI GUEST HOUSE</h2>
             <p className="text-xs uppercase tracking-widest font-semibold text-gray-500 mt-1">Kitchen Order Ticket (KOT)</p>

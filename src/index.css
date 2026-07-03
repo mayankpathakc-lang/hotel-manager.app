@@ -186,3 +186,18 @@
     display: none !important;
   }
 }
+
+/* Bulletproof print-only element utility */
+.print-area-only {
+  display: none !important;
+}
+
+@media print {
+  .print-area-only {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

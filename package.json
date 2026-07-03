@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "commonjs",
-  "main": "electron/main.js",
+  "main": "main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -47,7 +47,9 @@
     },
     "files": [
       "dist/**/*",
-      "electron/**/*",
+      "main.js",
+      "preload.js",
+      "database.js",
       "package.json"
     ],
     "win": {
